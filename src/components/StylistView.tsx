@@ -91,9 +91,6 @@ export function StylistView({
                 <LookPieces itemIds={look.itemIds} itemsById={itemsById} />
               </div>
               <p className="mt-5 max-w-2xl leading-relaxed">{look.reason}</p>
-              <Link href={`/try-on?look=${look.id}`} className="btn-outline mt-6">
-                Try this look on
-              </Link>
             </article>
           ))}
           {looks.length < MAX_LOOKS && (

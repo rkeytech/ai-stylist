@@ -132,7 +132,7 @@ export function mockLooks(items: StylableItem[]): LookDraft[] {
     const itemIds = orderItemIds(pieces.map((item) => item.id), byId);
     looks.push({
       title: MOCK_TITLES[n],
-      reason: `Pairs ${describeItems(itemIds, byId)}. (Mock suggestion - add a Gemini key for real styling.)`,
+      reason: `Pairs ${describeItems(itemIds, byId)}. (Mock suggestion - add an OpenRouter key for real styling.)`,
       itemIds,
     });
   }

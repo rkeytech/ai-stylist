@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-// Opt-in check that your Gemini key and models work end to end:
+// Opt-in check that your OpenRouter key and models work end to end:
 //   npm run test:live
 // It's skipped during `npm test` and makes one small, real API call.
 import fs from "node:fs";
@@ -35,14 +35,14 @@ function solidPng(size: number, [r, g, b]: [number, number, number]): Buffer {
   ]);
 }
 
-describe.runIf(live)("Gemini (live)", () => {
+describe.runIf(live)("OpenRouter (live)", () => {
   it("tags a photo through the real API, using the fallback model if needed", async () => {
     if (fs.existsSync(".env.local")) process.loadEnvFile(".env.local");
     process.env.AI_MOCK = "false";
 
     const started = Date.now();
     const tags = await tagItem({ data: solidPng(256, [40, 80, 200]), mimeType: "image/png" }, "shirt");
-    console.log(`Gemini answered in ${Date.now() - started} ms:`, tags);
+    console.log(`OpenRouter answered in ${Date.now() - started} ms:`, tags);
 
     expect(tags.name).toBeTruthy();
     expect(tags.colour).toBeTruthy();

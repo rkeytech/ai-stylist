@@ -8,7 +8,6 @@ import { ThemeToggle } from "./ThemeToggle";
 const TABS = [
   { href: "/wardrobe", label: "Wardrobe" },
   { href: "/stylist", label: "Stylist" },
-  { href: "/try-on", label: "Try-On" },
 ];
 
 export function SiteHeader({ email }: { email: string }) {
@@ -38,7 +37,7 @@ export function SiteHeader({ email }: { email: string }) {
           </button>
         </div>
       </div>
-      <nav aria-label="Main" className="mx-auto grid max-w-6xl grid-cols-3">
+      <nav aria-label="Main" className="mx-auto grid max-w-6xl grid-cols-2">
         {TABS.map((tab) => {
           const active = pathname.startsWith(tab.href);
           return (

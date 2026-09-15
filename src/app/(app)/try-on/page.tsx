@@ -1,25 +1,22 @@
 import type { Metadata } from "next";
-import { TryOnView } from "@/components/TryOnView";
-import { aiMode } from "@/lib/ai";
-import { listItems, listLooks, listTryOns, toLook, toTryOn, toWardrobeItem } from "@/lib/repo";
+import { PageHeading } from "@/components/ui";
 import { requirePageUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Try-On" };
 
-export default async function TryOnPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const user = await requirePageUser();
-  const { look } = await searchParams;
+// Try-On is temporarily disabled: this app has no image-generation provider configured right now
+// (see src/lib/ai.ts). The full camera flow still lives in TryOnView.tsx and the /api/try-on routes -
+// swap this page back to rendering <TryOnView /> (and restore its nav tab in SiteHeader.tsx and its
+// link in StylistView.tsx) once a provider is wired back in.
+export default async function TryOnPage() {
+  await requirePageUser();
   return (
-    <TryOnView
-      looks={listLooks(user.id).map(toLook)}
-      items={listItems(user.id).map(toWardrobeItem)}
-      initialSaved={listTryOns(user.id, true).map(toTryOn)}
-      initialLookId={typeof look === "string" ? look : null}
-      aiMode={aiMode()}
-    />
+    <div>
+      <PageHeading eyebrow="The Fitting Room" title="Try-On" />
+      <p className="mt-6 border-l-2 border-accent bg-card/60 px-4 py-3 text-sm text-muted">
+        <strong className="font-medium text-ink">Try-On is temporarily disabled.</strong> This feature needs an
+        image-generation model, which isn&apos;t configured right now. Wardrobe and Stylist are unaffected.
+      </p>
+    </div>
   );
 }

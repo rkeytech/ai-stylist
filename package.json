@@ -10,13 +10,12 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "node scripts/e2e.mjs",
-    "test:live": "vitest run --mode live --silent=false tests/gemini.live.test.ts"
+    "test:live": "vitest run --mode live --silent=false tests/openrouter.live.test.ts"
   },
   "engines": {
     "node": ">=22.13"
   },
   "dependencies": {
-    "@google/genai": "^2.22.0",
     "next": "^16.3.5",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

@@ -3,17 +3,23 @@
 A recreation of the app built in Ania Kubów's video
 [How to Build an AI Virtual Try On App: Live Camera + Vision Model](https://youtu.be/sN2kqWZhss8).
 The video builds it in Lovable on Supabase. This version is a normal Next.js codebase that runs entirely
-on your machine: a SQLite database, private file storage and Google Gemini for the AI.
+on your machine: a SQLite database, private file storage and OpenRouter for the AI.
+
+> **Try-On is temporarily disabled.** It previously used a Gemini image model for the camera-based
+> outfit generation; that's been removed and nothing has replaced it yet, so the tab and the "Try this
+> look on" links are hidden. The camera flow, API routes and saved-try-on storage are still in the
+> codebase (see `src/components/TryOnView.tsx`) and can be wired back up to an image-generation
+> provider later.
 
 ## Features
 
 | Video chapter | What's in this app |
 | --- | --- |
-| First prompt | Editorial "STYLED" design with three tabs: **Wardrobe**, **Stylist** and **Try-On** |
+| First prompt | Editorial "STYLED" design with two tabs: **Wardrobe** and **Stylist** (Try-On is temporarily disabled - see above) |
 | Real authentication | Email and password sign-up (you're signed in straight away), sign-in and sign-out. Every item, look and photo is private to its account. |
-| The Wardrobe | Upload a photo (from your phone camera or library). A Gemini vision model detects the **category** and **main colour**, and names the item if you left the name blank. The grid has category filters (All · Top · Bottom · Dress · Shoes · Outerwear), an empty state and a Remove button. |
-| The AI Stylist | **Style me** sends your wardrobe photos to Gemini, which returns up to **3 looks**. Each look is (top + bottom) or (dress), plus optional shoes and outerwear. A dress is never combined with a top or bottom, and only pieces you own are used. The model considers colour harmony and formality, and each look has a reason that names the actual colours and items. |
-| Live Camera Try-On | A live camera view with a friendly message when permission is denied. Pick a stylist look and press **Try it on** to capture a frame. The Gemini image model generates you wearing the outfit with the same face, pose and background. You see a blurred preview while it renders, then **Save** or **Retry**. |
+| The Wardrobe | Upload a photo (from your phone camera or library). A vision model (via OpenRouter) detects the **category** and **main colour**, and names the item if you left the name blank. The grid has category filters (All · Top · Bottom · Dress · Shoes · Outerwear), an empty state and a Remove button. |
+| The AI Stylist | **Style me** sends your wardrobe photos through OpenRouter, which returns up to **3 looks**. Each look is (top + bottom) or (dress), plus optional shoes and outerwear. A dress is never combined with a top or bottom, and only pieces you own are used. The model considers colour harmony and formality, and each look has a reason that names the actual colours and items. |
+| Live Camera Try-On | *Temporarily disabled* - was a live camera view where you could pick a stylist look and generate yourself wearing the outfit. |
 | Publish | Git repo ready to push to GitHub. See [Deploying](#deploying). |
 
 Additions beyond the video:
@@ -28,29 +34,31 @@ Requirements: **Node.js 22.13+** (the app uses the built-in `node:sqlite`).
 
 ```bash
 npm install
-cp .env.example .env.local   # then add your GEMINI_API_KEY
+cp .env.example .env.local   # then add your OPENROUTER_API_KEY
 npm run dev
 ```
 
 Open http://localhost:3000, create an account and upload a few pieces.
 
-Get a Gemini API key at https://aistudio.google.com/apikey.
+Get an OpenRouter API key at https://openrouter.ai/keys. If you plan to use `:free` models, also check
+https://openrouter.ai/settings/privacy - some free models are only offered to accounts that allow routing
+to providers that may train on prompts, and requests silently get "no providers available" until that's on.
 
 ### Environment variables
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `GEMINI_API_KEY` | none | Required for the real AI features |
-| `GEMINI_VISION_MODEL` | `gemini-3.1-flash-lite` | Auto-tagging and the stylist (free tier) |
-| `GEMINI_IMAGE_MODEL` | `gemini-3.1-flash-image` | Try-on image generation (needs billing) |
-| `GEMINI_VISION_FALLBACK_MODEL` | `gemini-3.6-flash` | Used when the vision model is overloaded or unavailable. Set it to empty to disable. |
-| `GEMINI_IMAGE_FALLBACK_MODEL` | `gemini-3.1-flash-lite-image` | Used when the image model is overloaded or unavailable. Set it to empty to disable. |
+| `OPENROUTER_API_KEY` | none | Required for the real AI features (auto-tagging, the stylist) |
+| `OPENROUTER_VISION_MODELS` | `openrouter/free,openai/gpt-4.1-nano` | Auto-tagging and the stylist. A comma-separated, ordered list - the app tries each in turn and only moves on when one is busy, rate-limited, out of credits, or unavailable. |
 
-> **Free vs paid Gemini keys:** a free Google AI Studio key covers auto-tagging and the stylist. Image
-> generation has no free quota, so **Try-On needs billing enabled** on the key's project; otherwise
-> Gemini answers `429 quota exceeded` and the app says so. When a model is busy (`503 high demand`),
-> the app switches to the fallback model automatically.
-| `AI_MOCK` | `false` | `true` simulates all AI offline: tags come from the item name, looks are rule-based, and try-on echoes your photo |
+> **Free vs paid OpenRouter models:** list the free (`:free`) models you want tried first, then any paid
+> models you're willing to fall back to, cheapest first - a paid model only gets called if every model
+> before it fails. Paid models need a small credit balance at https://openrouter.ai/credits. Browse
+> current free and paid models with live pricing at https://openrouter.ai/models. For example:
+> ```
+> OPENROUTER_VISION_MODELS=openrouter/free,google/gemma-4-31b-it:free,openai/gpt-4.1-nano,google/gemini-2.5-flash-lite
+> ```
+| `AI_MOCK` | `false` | `true` simulates auto-tagging and the stylist offline: tags come from the item name and looks are rule-based |
 | `DATA_DIR` | `./data` | Location of the SQLite database and uploaded photos |
 
 Without a key and with mock mode off, the app still works for manual uploads (you choose the category and colour
@@ -80,17 +88,17 @@ npx next dev --experimental-https --hostname 0.0.0.0
 ```
 src/
   app/
-    (app)/wardrobe | stylist | try-on   pages behind the sign-in check
+    (app)/wardrobe | stylist | try-on   pages behind the sign-in check (try-on is a disabled placeholder)
     login, signup                       auth pages
     api/
       auth/{signup,login,logout}        session cookie auth
       items, items/[id]                 wardrobe CRUD (upload runs AI tagging)
-      stylist                           "Style me" -> Gemini vision -> validated looks
-      try-on, try-on/[id]               frame + look -> Gemini image -> save / delete
+      stylist                           "Style me" -> OpenRouter vision -> validated looks
+      try-on, try-on/[id]               unused while Try-On is disabled (mock mode still exercises it)
       images/[kind]/[id]                serves private photos to their owner only
-  components/                           WardrobeView, StylistView, TryOnView, ...
+  components/                           WardrobeView, StylistView, TryOnView (currently unused), ...
   lib/
-    ai.ts        Gemini calls (tagging, stylist, try-on) plus mock mode
+    ai.ts        OpenRouter calls (tagging, stylist) plus mock mode; try-on generation is disabled
     outfits.ts   outfit rules and sanitising of model output
     repo.ts      SQLite queries, every one scoped to the signed-in user
     session.ts   scrypt passwords, hashed session tokens, httpOnly cookies

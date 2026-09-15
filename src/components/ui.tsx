@@ -31,14 +31,14 @@ export function AiNotice({ mode }: { mode: AiMode }) {
     <p className="mt-6 border-l-2 border-accent bg-card/60 px-4 py-3 text-sm text-muted">
       {mode === "mock" ? (
         <>
-          <strong className="font-medium text-ink">Mock AI mode.</strong> Tagging, styling and try-ons are
-          simulated offline. Set <code>AI_MOCK=false</code> and add a Gemini key for real results.
+          <strong className="font-medium text-ink">Mock AI mode.</strong> Tagging and styling are simulated
+          offline. Set <code>AI_MOCK=false</code> and add an OpenRouter key for real results.
         </>
       ) : (
         <>
           <strong className="font-medium text-ink">AI isn&apos;t set up yet.</strong> Add{" "}
-          <code>GEMINI_API_KEY</code> to <code>.env.local</code> and restart the server to enable auto-tagging,
-          the stylist and try-on.
+          <code>OPENROUTER_API_KEY</code> to <code>.env.local</code> and restart the server to enable
+          auto-tagging and the stylist.
         </>
       )}
     </p>

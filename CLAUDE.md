@@ -5,15 +5,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 Styled — a personal AI stylist app (recreation of a Lovable/Supabase tutorial app, rebuilt as a plain Next.js
-codebase running entirely on the local machine: SQLite, private on-disk file storage, and Google Gemini for AI).
-Three features behind auth: **Wardrobe** (upload + auto-tag clothing photos), **Stylist** ("Style me" → up to 3
-AI-generated outfit looks), **Try-On** (live camera capture + AI image generation wearing a chosen look).
+codebase running entirely on the local machine: SQLite, private on-disk file storage, and OpenRouter for AI).
+Two features behind auth right now: **Wardrobe** (upload + auto-tag clothing photos), **Stylist** ("Style me" →
+up to 3 AI-generated outfit looks). **Try-On** (live camera capture + AI image generation wearing a chosen look)
+is temporarily disabled — see "Try-On is disabled" below.
 
 ## Commands
 
 ```bash
 npm install
-cp .env.example .env.local        # then set GEMINI_API_KEY, or set AI_MOCK=true
+cp .env.example .env.local        # then set OPENROUTER_API_KEY, or set AI_MOCK=true
 npm run dev                       # dev server (Turbopack)
 npm run build && npm start        # production build and server
 npm run typecheck                 # tsc --noEmit
@@ -21,19 +22,20 @@ npm test                          # vitest run — all unit tests
 npm test -- tests/outfits.test.ts # run a single test file
 npm test -- -t "name fragment"    # run tests matching a name
 npm run test:e2e -- http://localhost:3000   # scripts/e2e.mjs against a running server (needs AI_MOCK=true)
-npm run test:live                 # tests/gemini.live.test.ts — makes one REAL Gemini call, costs quota
+npm run test:live                 # tests/openrouter.live.test.ts — makes one REAL OpenRouter call, costs quota
 ```
 
 Node.js **22.13+** is required (the app uses the built-in `node:sqlite`, no external DB driver).
 
 `npm run test:e2e` needs a server already running with `AI_MOCK=true` (e.g. `npm run dev` in one terminal with
 that env var set). It drives the full API as three separate cookie-jar "browsers" (two real users + anonymous)
-and checks auth, uploads, AI tagging, the stylist, try-on, privacy isolation between accounts, and deletion —
-treat it as the source of truth for expected API behavior, not just a smoke test.
+and checks auth, uploads, AI tagging, the stylist, try-on (still exercised in mock mode even though the live
+feature is disabled — see below), privacy isolation between accounts, and deletion — treat it as the source of
+truth for expected API behavior, not just a smoke test.
 
 ## Architecture
 
-**Everything runs in one Next.js process** — no external services except the Gemini API. Data is not
+**Everything runs in one Next.js process** — no external services except the OpenRouter API. Data is not
 in the cloud: SQLite lives at `$DATA_DIR/styled.db` (default `./data`) and uploaded photos live under
 `$DATA_DIR/uploads/<userId>/`, served only through authenticated routes (there is no `public/` folder for
 user images). Because of the single-file SQLite writer, only one instance of the app may run against a given
@@ -52,7 +54,8 @@ src/lib/repo.ts            All SQL. Every query is scoped by user_id — this is
 src/lib/db.ts              node:sqlite connection + schema (idempotent CREATE TABLE), kept on globalThis to
                             survive Next.js dev hot-reloads
 src/lib/storage.ts         Per-user photo files on disk, path-traversal-checked against the uploads root
-src/lib/ai.ts              All Gemini calls: auto-tagging, the stylist, try-on image generation, plus mock mode
+src/lib/ai.ts              OpenRouter calls: auto-tagging, the stylist, plus mock mode. Try-on generation is
+                            disabled (see below) — generateTryOn() only ever runs its mock branch
 src/lib/outfits.ts         Outfit validity rules + sanitizing untrusted model JSON into safe LookDraft[]
 src/lib/wardrobe.ts        Category enum, keyword-based category/colour guessing, shared text-cleaning helpers
 src/lib/item-images.ts     Loads stored photos off disk for AI calls, skipping any that are missing
@@ -65,19 +68,34 @@ errors, throw one of these two types instead and let `handle()` do it.
 
 ### AI (`src/lib/ai.ts`)
 
-- `aiMode()` returns `"live" | "mock" | "unconfigured"` based on `AI_MOCK` and `GEMINI_API_KEY`. Every AI entry
-  point (`tagItem`, `suggestLooks`, `generateTryOn`) branches on this first, so mock mode has zero network calls.
-- Vision (tagging, stylist) and image generation (try-on) use **separate models** with separate fallbacks
-  (`GEMINI_VISION_MODEL`/`GEMINI_VISION_FALLBACK_MODEL`, `GEMINI_IMAGE_MODEL`/`GEMINI_IMAGE_FALLBACK_MODEL`).
-  Free Gemini keys cover vision; image generation needs billing enabled or it 429s.
-- SDK retries are deliberately disabled (`retryOptions: { attempts: 1 }`) — an overloaded model can take
-  20–120s just to return a 503, so `withModelFallback()` moves to the fallback model instead of waiting on
-  retries against the same one. Preserve this pattern when adding new Gemini calls.
+- `aiMode()` returns `"live" | "mock" | "unconfigured"` based on `AI_MOCK` and `OPENROUTER_API_KEY`. `tagItem`
+  and `suggestLooks` branch on this first, so mock mode has zero network calls.
+- Vision (tagging, stylist) calls OpenRouter's chat completions endpoint (`https://openrouter.ai/api/v1/chat/completions`)
+  directly via `fetch` — there's no SDK dependency. Images go in as `image_url` content parts with a base64
+  `data:` URL; structured output is requested with `response_format: { type: "json_object" }` and the exact
+  shape is spelled out in the prompt (not a provider-native JSON schema), since the model list can span very
+  different providers. `OPENROUTER_VISION_MODELS` is a comma-separated, ordered list (see `visionModels()`
+  in `ai.ts`) — put free models first and any paid fallbacks after, cheapest first; a later model is only
+  ever called if every one before it fails (busy, rate-limited, out of credits, or unavailable).
+- No retries here: an overloaded/rate-limited/out-of-credits model can be slow to answer with an error, so
+  `withModelFallback()` moves to the fallback model instead of waiting on the same one again. Preserve this
+  pattern when adding new OpenRouter calls.
 - All model output is untrusted: stylist JSON is run through `sanitizeLooks()` (drops invalid outfits rather
-  than repairing them) and try-on images are re-sniffed by magic bytes before being trusted as an image.
+  than repairing them); `tagItem` falls back to keyword-guessing (`wardrobe.ts`) for any field the model didn't
+  return sensibly.
 - Mock mode (`AI_MOCK=true`) is a fully offline path used by `npm run test:e2e` and local dev without a key:
   tags come from keyword-matching the item name (`wardrobe.ts`), stylist looks are generated deterministically
-  by `mockLooks()` in `outfits.ts`, and try-on just echoes the input photo back.
+  by `mockLooks()` in `outfits.ts`, and `generateTryOn()`'s mock branch just echoes the input photo back.
+
+### Try-On is disabled
+
+`generateTryOn()` in `ai.ts` throws immediately outside mock mode — this app has no image-generation provider
+configured (the previous implementation used a paid Gemini image model; nothing has replaced it). The Try-On
+tab is removed from `SiteHeader.tsx`'s nav, `StylistView.tsx`'s "Try this look on" link is removed, and
+`src/app/(app)/try-on/page.tsx` renders a small disabled notice instead of `<TryOnView>`. Everything else —
+`TryOnView.tsx`, the `/api/try-on*` routes, `repo.ts`/`storage.ts` try-on persistence, and mock-mode generation —
+is untouched and still exercised by `npm run test:e2e`, so re-enabling later is: wire a provider into
+`generateTryOn()`, swap the try-on page back to `<TryOnView>`, and restore the nav tab and stylist link.
 
 ### Outfit rules (`src/lib/outfits.ts`)
 
@@ -85,7 +103,7 @@ The single rule the whole app enforces: an outfit is **(one top + one bottom) or
 one pair of shoes, one outerwear piece, and any number of accessories (jewellery, watches, bags, belts, hats,
 and similar) — a dress is never combined with a top or bottom, and shoes/outerwear are capped at one each while
 accessories are uncapped. This is checked both when sanitizing AI output and in `canStyle()` (gates whether
-"Style me" is even available). Treat this file, not the Gemini prompt, as the authority on what a valid look is.
+"Style me" is even available). Treat this file, not the AI prompt, as the authority on what a valid look is.
 
 ### Wardrobe categories and colours (`src/lib/wardrobe.ts`, `src/lib/db.ts`)
 

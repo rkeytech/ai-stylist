@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeDb } from "@/lib/db";
 import {
+  addColour,
   createUser,
   deleteItem,
   deleteSession,
@@ -14,11 +15,13 @@ import {
   insertItem,
   insertSession,
   insertTryOn,
+  listColours,
   listItems,
   listLooks,
   listTryOns,
   markTryOnSaved,
   replaceLooks,
+  updateItem,
 } from "@/lib/repo";
 
 let dir: string;
@@ -33,7 +36,11 @@ afterAll(() => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-function addItem(userId: string, id: string, category: "top" | "bottom" | "dress" | "shoes" | "outerwear") {
+function addItem(
+  userId: string,
+  id: string,
+  category: "top" | "bottom" | "dress" | "shoes" | "outerwear" | "accessories",
+) {
   return insertItem({
     id,
     user_id: userId,
@@ -87,6 +94,32 @@ describe("per-user privacy", () => {
     expect(markTryOnSaved(alice.id, "alice-tryon")).toBe(true);
     expect(listTryOns(alice.id, true).map((row) => row.id)).toEqual(["alice-tryon"]);
     expect(listTryOns(bob.id, true)).toEqual([]);
+  });
+});
+
+describe("editing items", () => {
+  it("updates name, category and colour, scoped to the owner", () => {
+    const alice = createUser("editor@example.com", "hash");
+    const bob = createUser("editor-bob@example.com", "hash");
+    addItem(alice.id, "editable", "top");
+
+    expect(updateItem(bob.id, "editable", { name: "Nope", category: "bottom", colour: "red" })).toBeUndefined();
+    expect(getItem(alice.id, "editable")?.name).toBe("editable");
+
+    const updated = updateItem(alice.id, "editable", { name: "Gold hoop earrings", category: "accessories", colour: "gold" });
+    expect(updated).toMatchObject({ name: "Gold hoop earrings", category: "accessories", colour: "gold" });
+    expect(updateItem(alice.id, "missing", { name: "x", category: "top", colour: "blue" })).toBeUndefined();
+  });
+});
+
+describe("colours", () => {
+  it("seeds a known vocabulary and grows it without duplicates", () => {
+    expect(listColours()).toEqual(expect.arrayContaining(["blue", "black", "grey"]));
+    expect(listColours()).not.toContain("gray");
+
+    addColour("Cerulean");
+    addColour("cerulean");
+    expect(listColours().filter((colour) => colour === "cerulean")).toHaveLength(1);
   });
 });
 

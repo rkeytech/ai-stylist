@@ -105,6 +105,15 @@ describe("mock mode", () => {
     });
   });
 
+  it("tags accessories from their name", async () => {
+    process.env.AI_MOCK = "true";
+    expect(await tagItem(image, "Gold hoop earrings")).toEqual({
+      name: "Gold hoop earrings",
+      category: "accessories",
+      colour: "gold",
+    });
+  });
+
   it("suggests valid looks and echoes the photo for try-on", async () => {
     process.env.AI_MOCK = "true";
     const items: ItemWithImage[] = [

@@ -82,9 +82,21 @@ errors, throw one of these two types instead and let `handle()` do it.
 ### Outfit rules (`src/lib/outfits.ts`)
 
 The single rule the whole app enforces: an outfit is **(one top + one bottom) or (one dress)**, plus optionally
-one pair of shoes and/or one outerwear piece — a dress is never combined with a top or bottom. This is checked
-both when sanitizing AI output and in `canStyle()` (gates whether "Style me" is even available). Treat this file,
-not the Gemini prompt, as the authority on what a valid look is.
+one pair of shoes, one outerwear piece, and any number of accessories (jewellery, watches, bags, belts, hats,
+and similar) — a dress is never combined with a top or bottom, and shoes/outerwear are capped at one each while
+accessories are uncapped. This is checked both when sanitizing AI output and in `canStyle()` (gates whether
+"Style me" is even available). Treat this file, not the Gemini prompt, as the authority on what a valid look is.
+
+### Wardrobe categories and colours (`src/lib/wardrobe.ts`, `src/lib/db.ts`)
+
+`CATEGORIES` (`top`, `bottom`, `dress`, `shoes`, `outerwear`, `accessories`) is a fixed, closed list — it's
+baked into the `items.category` CHECK constraint and into the outfit rules above, so it doesn't grow at runtime.
+Colours are the opposite: an open, growing vocabulary. The `colours` table is seeded from `COLOUR_WORDS` on
+startup and every upload or edit (`POST /api/items`, `PATCH /api/items/[id]`) calls `repo.addColour()` so any
+colour the AI tags or a user types becomes available to future dropdowns via `GET /api/colours`. Because
+`items.category` has a CHECK constraint, adding `accessories` required a one-time in-place migration
+(`migrateAccessoriesCategory()` in `db.ts`) that rebuilds the table for any database created before this
+category existed — SQLite can't widen a CHECK constraint with `ALTER TABLE`.
 
 ### Theming and dark mode (`src/app/globals.css`, `src/components/ThemeToggle.tsx`)
 

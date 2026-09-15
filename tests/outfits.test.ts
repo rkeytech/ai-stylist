@@ -9,6 +9,8 @@ const items: StylableItem[] = [
   { id: "s1", name: "Espadrilles", category: "shoes", colour: "tan" },
   { id: "s2", name: "Heels", category: "shoes", colour: "lime" },
   { id: "o1", name: "Utility jacket", category: "outerwear", colour: "beige" },
+  { id: "a1", name: "Gold hoop earrings", category: "accessories", colour: "gold" },
+  { id: "a2", name: "Leather watch", category: "accessories", colour: "brown" },
 ];
 const byId = new Map(items.map((item) => [item.id, item]));
 
@@ -21,6 +23,12 @@ describe("checkOutfit", () => {
   it("accepts a dress on its own or with extras", () => {
     expect(checkOutfit(["d1"], byId)).toBeNull();
     expect(checkOutfit(["d1", "s2", "o1"], byId)).toBeNull();
+  });
+
+  it("allows any number of accessories", () => {
+    expect(checkOutfit(["t1", "b1", "a1"], byId)).toBeNull();
+    expect(checkOutfit(["t1", "b1", "a1", "a2"], byId)).toBeNull();
+    expect(checkOutfit(["d1", "a1", "a2"], byId)).toBeNull();
   });
 
   it("never combines a dress with a bottom or a top", () => {
@@ -75,6 +83,13 @@ describe("mockLooks and canStyle", () => {
     expect(looks).toHaveLength(3);
     for (const look of looks) expect(checkOutfit(look.itemIds, byId)).toBeNull();
     expect(new Set(looks.map((look) => [...look.itemIds].sort().join("|"))).size).toBe(3);
+  });
+
+  it("accessorizes every look when accessories are available", () => {
+    const looks = mockLooks(items);
+    for (const look of looks) {
+      expect(look.itemIds.some((id) => byId.get(id)?.category === "accessories")).toBe(true);
+    }
   });
 
   it("doesn't repeat a colour the item name already mentions", () => {

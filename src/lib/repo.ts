@@ -112,6 +112,19 @@ export function insertItem(row: Omit<ItemRow, "created_at">): ItemRow {
   return full;
 }
 
+/** Updates the editable fields of an item (name, category, colour). Returns the updated row, or undefined if not found. */
+export function updateItem(
+  userId: string,
+  id: string,
+  changes: { name: string; category: Category; colour: string },
+): ItemRow | undefined {
+  const changed = run(
+    "UPDATE items SET name = ?, category = ?, colour = ? WHERE user_id = ? AND id = ?",
+    changes.name, changes.category, changes.colour, userId, id,
+  );
+  return changed > 0 ? getItem(userId, id) : undefined;
+}
+
 /** Deletes the item and any saved stylist look that relied on it. Returns the removed row. */
 export function deleteItem(userId: string, id: string): ItemRow | undefined {
   return transaction(() => {
@@ -125,6 +138,19 @@ export function deleteItem(userId: string, id: string): ItemRow | undefined {
     );
     return item;
   });
+}
+
+// ---- known colours -----------------------------------------------------------
+// Shared across all users: a growing vocabulary, seeded from wardrobe.ts's COLOUR_WORDS
+// and extended whenever tagging or editing an item introduces one the table doesn't have.
+
+export function listColours(): string[] {
+  return many<{ name: string }>("SELECT name FROM colours ORDER BY name").map((row) => row.name);
+}
+
+export function addColour(name: string): void {
+  const value = name.trim().toLowerCase();
+  if (value) run("INSERT OR IGNORE INTO colours (name) VALUES (?)", value);
 }
 
 // ---- stylist looks ----------------------------------------------------------

@@ -1,4 +1,4 @@
-export const CATEGORIES = ["top", "bottom", "dress", "shoes", "outerwear"] as const;
+export const CATEGORIES = ["top", "bottom", "dress", "shoes", "outerwear", "accessories"] as const;
 export type Category = (typeof CATEGORIES)[number];
 
 export const CATEGORY_LABELS: Record<Category, string> = {
@@ -7,6 +7,7 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   dress: "Dress",
   shoes: "Shoes",
   outerwear: "Outerwear",
+  accessories: "Accessories",
 };
 
 /** Display order of pieces inside an outfit. */
@@ -16,6 +17,7 @@ export const CATEGORY_ORDER: Record<Category, number> = {
   dress: 2,
   bottom: 3,
   shoes: 4,
+  accessories: 5,
 };
 
 export function isCategory(value: unknown): value is Category {
@@ -55,9 +57,13 @@ const CATEGORY_KEYWORDS: [Category, RegExp][] = [
   ["shoes", /\b(shoes?|heels?|sneakers?|trainers?|boots?|sandals?|loafers?|flats|espadrilles?|pumps|mules?)\b/i],
   ["bottom", /\b(trousers|pants|jeans|skirt|shorts|leggings|chinos|joggers|culottes)\b/i],
   ["top", /\b(shirt|t-?shirt|tee|top|blouse|sweater|jumper|hoodie|tank|polo|knit|sweatshirt|camisole|bodysuit)\b/i],
+  [
+    "accessories",
+    /\b(earrings?|necklaces?|bracelets?|watch(?:es)?|sunglasses|glasses|scarves?|scarf|belts?|hats?|caps?|handbags?|bags?|purses?|tie|ties|jewell?ery)\b/i,
+  ],
 ];
 
-const COLOUR_WORDS = [
+export const COLOUR_WORDS = [
   "black", "white", "cream", "ivory", "beige", "camel", "grey", "gray", "charcoal", "navy",
   "blue", "denim", "teal", "green", "olive", "khaki", "yellow", "mustard", "orange", "red",
   "burgundy", "pink", "lilac", "purple", "brown", "tan", "gold", "silver", "multicolour",

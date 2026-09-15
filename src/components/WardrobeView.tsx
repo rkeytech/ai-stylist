@@ -18,16 +18,35 @@ import { AiNotice, ErrorNote, PageHeading } from "./ui";
 
 type Filter = "all" | Category;
 
-export function WardrobeView({ initialItems, aiMode }: { initialItems: WardrobeItem[]; aiMode: AiMode }) {
+export function WardrobeView({
+  initialItems,
+  initialColours,
+  aiMode,
+}: {
+  initialItems: WardrobeItem[];
+  initialColours: string[];
+  aiMode: AiMode;
+}) {
   const [items, setItems] = useState(initialItems);
+  const [colours, setColours] = useState(initialColours);
   const [filter, setFilter] = useState<Filter>("all");
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<WardrobeItem | null>(null);
   const [error, setError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const editDialogRef = useRef<HTMLDialogElement>(null);
 
   const counts = useMemo(() => {
-    const result: Record<Filter, number> = { all: items.length, top: 0, bottom: 0, dress: 0, shoes: 0, outerwear: 0 };
+    const result: Record<Filter, number> = {
+      all: items.length,
+      top: 0,
+      bottom: 0,
+      dress: 0,
+      shoes: 0,
+      outerwear: 0,
+      accessories: 0,
+    };
     for (const item of items) result[item.category]++;
     return result;
   }, [items]);
@@ -52,6 +71,29 @@ export function WardrobeView({ initialItems, aiMode }: { initialItems: WardrobeI
     setItems((list) => [item, ...list]);
     setFilter((current) => (current === "all" || current === item.category ? current : "all"));
   }
+
+  function startEdit(item: WardrobeItem) {
+    setEditingItem(item);
+    editDialogRef.current?.showModal();
+  }
+
+  function onSaved(item: WardrobeItem) {
+    setItems((list) => list.map((entry) => (entry.id === item.id ? item : entry)));
+  }
+
+  function onColourAdded(colour: string) {
+    setColours((list) => (list.includes(colour) ? list : [...list, colour].sort()));
+  }
+
+  // Native close (Esc, the × button, or a finished save) always leaves the dialog
+  // empty for the next item, rather than flashing the previously edited one.
+  useEffect(() => {
+    const dialog = editDialogRef.current;
+    if (!dialog) return;
+    const onClose = () => setEditingItem(null);
+    dialog.addEventListener("close", onClose);
+    return () => dialog.removeEventListener("close", onClose);
+  }, []);
 
   return (
     <div>
@@ -126,9 +168,14 @@ export function WardrobeView({ initialItems, aiMode }: { initialItems: WardrobeI
                   </button>
                 </div>
               ) : (
-                <button type="button" className="btn-link mt-2" onClick={() => setConfirmingId(item.id)}>
-                  Remove
-                </button>
+                <div className="mt-2 flex items-center gap-3">
+                  <button type="button" className="btn-link" onClick={() => startEdit(item)}>
+                    Edit
+                  </button>
+                  <button type="button" className="btn-link" onClick={() => setConfirmingId(item.id)}>
+                    Remove
+                  </button>
+                </div>
               )}
             </li>
           ))}
@@ -136,6 +183,13 @@ export function WardrobeView({ initialItems, aiMode }: { initialItems: WardrobeI
       )}
 
       <UploadDialog dialogRef={dialogRef} aiMode={aiMode} onUploaded={onUploaded} />
+      <EditDialog
+        dialogRef={editDialogRef}
+        item={editingItem}
+        colours={colours}
+        onSaved={onSaved}
+        onColourAdded={onColourAdded}
+      />
     </div>
   );
 }
@@ -286,6 +340,7 @@ function UploadDialog({
             <span className="eyebrow">Colour</span>
             <input
               name="colour"
+              list="known-colours"
               maxLength={30}
               required={manual}
               placeholder={manual ? "e.g. navy" : "Detect with AI"}
@@ -300,6 +355,122 @@ function UploadDialog({
           {pending ? (manual ? "Filing it…" : "AI is looking at your photo…") : "Add to wardrobe"}
         </button>
       </form>
+    </dialog>
+  );
+}
+
+function EditDialog({
+  dialogRef,
+  item,
+  colours,
+  onSaved,
+  onColourAdded,
+}: {
+  dialogRef: RefObject<HTMLDialogElement | null>;
+  item: WardrobeItem | null;
+  colours: string[];
+  onSaved: (item: WardrobeItem) => void;
+  onColourAdded: (colour: string) => void;
+}) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setError(null);
+    setPending(false);
+  }, [item]);
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!item) return;
+    const fields = new FormData(event.currentTarget);
+    const name = String(fields.get("name") ?? "").trim();
+    const category = String(fields.get("category") ?? "");
+    const colour = String(fields.get("colour") ?? "").trim().toLowerCase();
+
+    setPending(true);
+    setError(null);
+    try {
+      const { item: updated } = await apiFetch<{ item: WardrobeItem }>(`/api/items/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, category, colour }),
+      });
+      onSaved(updated);
+      onColourAdded(updated.colour);
+      dialogRef.current?.close();
+    } catch (err) {
+      setError(errorMessage(err, "Couldn't save those changes."));
+      setPending(false);
+    }
+  }
+
+  return (
+    <dialog
+      ref={dialogRef}
+      aria-labelledby="edit-title"
+      className="m-auto w-[min(92vw,30rem)] bg-paper p-0 text-ink backdrop:bg-scrim/50"
+    >
+      {item && (
+        <form key={item.id} onSubmit={onSubmit} className="p-6 sm:p-8">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="eyebrow">Edit piece</p>
+              <h2 id="edit-title" className="display mt-1 text-4xl">
+                {item.name}
+              </h2>
+            </div>
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => dialogRef.current?.close()}
+              className="text-3xl leading-none text-muted hover:text-ink"
+            >
+              ×
+            </button>
+          </div>
+
+          <label className="mt-6 block">
+            <span className="eyebrow">Name</span>
+            <input name="name" maxLength={60} required defaultValue={item.name} className="field mt-1" />
+          </label>
+
+          <div className="mt-6 grid grid-cols-2 gap-5">
+            <label className="block">
+              <span className="eyebrow">Category</span>
+              <select name="category" defaultValue={item.category} required className="field mt-1">
+                {CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {CATEGORY_LABELS[category]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="eyebrow">Colour</span>
+              <input
+                name="colour"
+                list="known-colours"
+                maxLength={30}
+                required
+                defaultValue={item.colour}
+                className="field mt-1"
+              />
+            </label>
+          </div>
+
+          {error && <ErrorNote>{error}</ErrorNote>}
+
+          <button type="submit" disabled={pending} className="btn-primary mt-8 w-full">
+            {pending ? "Saving…" : "Save changes"}
+          </button>
+        </form>
+      )}
+      <datalist id="known-colours">
+        {colours.map((colour) => (
+          <option key={colour} value={colour} />
+        ))}
+      </datalist>
     </dialog>
   );
 }

@@ -101,6 +101,7 @@ const pieces = [
   ["Green slip dress", [60, 160, 90], "dress", "green"],
   ["Tan espadrilles", [200, 170, 120], "shoes", "tan"],
   ["Beige utility jacket", [220, 205, 170], "outerwear", "beige"],
+  ["Gold hoop earrings", [210, 180, 60], "accessories", "gold"],
 ];
 const items = {};
 for (const [name, rgb, category, colour] of pieces) {
@@ -117,7 +118,27 @@ check("non-image disguised as PNG is rejected", (await alice.call("/api/items", 
 check("upload without a photo is rejected", (await alice.call("/api/items", { method: "POST", form: new FormData() })).status === 400);
 
 const list = await alice.call("/api/items");
-check("wardrobe lists all 6 pieces, newest first", list.data.items?.length === 6 && list.data.items[0].name === "Mystery piece", list.data);
+check("wardrobe lists all 7 pieces, newest first", list.data.items?.length === 7 && list.data.items[0].name === "Mystery piece", list.data);
+
+// --- editing items ---
+const coloursBefore = await alice.call("/api/colours");
+check("known colours seed a base vocabulary", coloursBefore.data.colours?.includes("blue") && coloursBefore.data.colours?.includes("gold"), coloursBefore.data);
+
+const edited = await alice.call(`/api/items/${items.top.id}`, {
+  method: "PATCH",
+  json: { name: "Vintage denim shirt", category: "top", colour: "Cerulean" },
+});
+check(
+  "owner can edit an item's name, category and colour",
+  edited.status === 200 && edited.data.item.name === "Vintage denim shirt" && edited.data.item.colour === "cerulean",
+  edited.data,
+);
+const coloursAfter = await alice.call("/api/colours");
+check("editing with a new colour adds it to the known colours", coloursAfter.data.colours?.includes("cerulean"), coloursAfter.data);
+
+check("edit rejects an invalid category", (await alice.call(`/api/items/${items.top.id}`, { method: "PATCH", json: { name: "x", category: "made-up", colour: "blue" } })).status === 400);
+check("anonymous edit is rejected", (await anon.call(`/api/items/${items.top.id}`, { method: "PATCH", json: { name: "Nope", category: "top", colour: "blue" } })).status === 401);
+check("cross-site edit is blocked", (await alice.call(`/api/items/${items.top.id}`, { method: "PATCH", json: { name: "Nope", category: "top", colour: "blue" }, origin: "https://evil.example" })).status === 403);
 
 const topBytes = png(64, 80, [60, 110, 200]);
 const image = await alice.call(items.top.imageUrl);
@@ -130,6 +151,7 @@ await bob.call("/api/auth/signup", { method: "POST", json: { email: `bob${unique
 check("another user sees an empty wardrobe", (await bob.call("/api/items")).data.items?.length === 0);
 check("another user can't load someone else's photo", (await bob.call(items.top.imageUrl)).status === 404);
 check("another user can't delete someone else's item", (await bob.call(`/api/items/${items.top.id}`, { method: "DELETE" })).status === 404);
+check("another user can't edit someone else's item", (await bob.call(`/api/items/${items.top.id}`, { method: "PATCH", json: { name: "Nope", category: "top", colour: "blue" } })).status === 404);
 check("stylist needs a top+bottom or a dress", (await bob.call("/api/stylist", { method: "POST" })).status === 422);
 
 // --- stylist ---
@@ -137,6 +159,11 @@ const styled = await alice.call("/api/stylist", { method: "POST" });
 const byId = new Map(list.data.items.map((item) => [item.id, item]));
 const looks = styled.data.looks ?? [];
 check("stylist returns 3 looks", styled.status === 200 && looks.length === 3, styled.data);
+check(
+  "mock stylist accessorizes looks when accessories are available",
+  looks.every((look) => look.itemIds.some((id) => byId.get(id)?.category === "accessories")),
+  looks,
+);
 for (const look of looks) {
   const categories = look.itemIds.map((id) => byId.get(id)?.category);
   const count = (c) => categories.filter((x) => x === c).length;

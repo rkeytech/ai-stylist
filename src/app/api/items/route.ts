@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { AiError, tagItem } from "@/lib/ai";
 import { assertSameOrigin, handle, readForm, readImageFile, requireUser } from "@/lib/http";
-import { insertItem, listItems, toWardrobeItem } from "@/lib/repo";
+import { addColour, insertItem, listItems, toWardrobeItem } from "@/lib/repo";
 import { deleteImage, saveImage } from "@/lib/storage";
 import { cleanText, isCategory } from "@/lib/wardrobe";
 
@@ -39,6 +39,7 @@ export const POST = handle(async (request: Request) => {
   const imagePath = await saveImage(user.id, id, bytes, mime);
   try {
     const row = insertItem({ id, user_id: user.id, name, category, colour, image_path: imagePath, mime_type: mime });
+    addColour(colour);
     return NextResponse.json({ item: toWardrobeItem(row) }, { status: 201 });
   } catch (err) {
     await deleteImage(imagePath);

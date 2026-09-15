@@ -28,7 +28,7 @@ export function canStyle(items: Pick<StylableItem, "category">[]): boolean {
 
 /**
  * Checks the outfit rules from the stylist brief:
- * (top + bottom) or (dress), plus optional shoes and outerwear,
+ * (top + bottom) or (dress), plus optional shoes, outerwear and accessories,
  * never a dress with a bottom, and only items the user owns.
  * Returns a reason string when invalid, or null when the outfit is valid.
  */
@@ -36,7 +36,7 @@ export function checkOutfit(itemIds: string[], byId: Map<string, StylableItem>):
   if (itemIds.length === 0) return "empty outfit";
   if (new Set(itemIds).size !== itemIds.length) return "duplicate item";
 
-  const counts: Record<Category, number> = { top: 0, bottom: 0, dress: 0, shoes: 0, outerwear: 0 };
+  const counts: Record<Category, number> = { top: 0, bottom: 0, dress: 0, shoes: 0, outerwear: 0, accessories: 0 };
   for (const id of itemIds) {
     const item = byId.get(id);
     if (!item) return `unknown item ${id}`;
@@ -104,8 +104,8 @@ const MOCK_TITLES = ["Easy Weekend Edit", "City Day Uniform", "Golden Hour Ease"
 /** Deterministic, rule-following suggestions used when AI_MOCK=true. */
 export function mockLooks(items: StylableItem[]): LookDraft[] {
   const of = (category: Category) => items.filter((item) => item.category === category);
-  const [tops, bottoms, dresses, shoes, outerwear] = [
-    of("top"), of("bottom"), of("dress"), of("shoes"), of("outerwear"),
+  const [tops, bottoms, dresses, shoes, outerwear, accessories] = [
+    of("top"), of("bottom"), of("dress"), of("shoes"), of("outerwear"), of("accessories"),
   ];
 
   const bases: StylableItem[][] = [
@@ -126,6 +126,7 @@ export function mockLooks(items: StylableItem[]): LookDraft[] {
     const pieces = [...base];
     if (outerwear.length) pieces.push(outerwear[n % outerwear.length]);
     if (shoes.length) pieces.push(shoes[n % shoes.length]);
+    if (accessories.length) pieces.push(accessories[n % accessories.length]);
     pieces.forEach((item) => usage.set(item.id, (usage.get(item.id) ?? 0) + 1));
 
     const itemIds = orderItemIds(pieces.map((item) => item.id), byId);

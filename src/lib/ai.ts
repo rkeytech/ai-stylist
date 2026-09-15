@@ -1,4 +1,5 @@
 import { ApiError, GoogleGenAI, type Part } from "@google/genai";
+import sharp from "sharp";
 import { sniffImageMime, type ImageMime } from "./image-mime";
 import { mockLooks, sanitizeLooks, type LookDraft, type StylableItem } from "./outfits";
 import {
@@ -158,8 +159,9 @@ const TAG_SCHEMA = {
 };
 
 const TAG_PROMPT = `You catalogue clothing for a personal wardrobe app.
-Look at the photo and identify the single main clothing item.
-- category must be one of: top, bottom, dress, shoes, outerwear (jackets, coats, blazers and cardigans are outerwear).
+Look at the photo and identify the single main clothing item or accessory.
+- category must be one of: top, bottom, dress, shoes, outerwear (jackets, coats, blazers and cardigans are
+  outerwear), accessories (jewellery, watches, bags, belts, hats, scarves, sunglasses and similar).
 - colour is the dominant colour as a shopper would say it.
 - name is a short, specific product-style name.`;
 
@@ -222,6 +224,8 @@ Rules:
 - Only use items that exist in this wardrobe, referenced by their exact id.
 - An outfit is either (one top + one bottom) or (one dress). Never combine a dress with a top or a bottom.
 - Optionally add one pair of shoes and/or one outerwear piece to any outfit.
+- A full look often includes accessories (jewellery, a watch, a bag, a belt, a hat, sunglasses): add any number
+  of accessory pieces where they genuinely complete the outfit, but never invent an occasion to force one in.
 - Consider colour harmony and how formal each piece is, so every outfit suits one occasion.
 - Make the 3 outfits clearly different from each other. If the wardrobe only allows fewer, return fewer.
 - For each outfit give a short title and a short, specific reason that mentions the actual colours and items.
@@ -229,18 +233,38 @@ The wardrobe items follow, each as a label line and then its photo.`;
 
 const MAX_STYLIST_ITEMS = 40;
 
+// The stylist only needs to judge colour/pattern/silhouette across the whole wardrobe at once, not
+// full photo detail, so every item's photo is shrunk to a small thumbnail before it goes into the
+// request. A full wardrobe otherwise means dozens of full-size photos in one request, which takes
+// Gemini much longer to process and makes a 503 (high demand) far more likely for exactly that call.
+const STYLIST_THUMBNAIL_SIZE = 384;
+const STYLIST_THUMBNAIL_QUALITY = 70;
+
+async function stylistThumbnail(image: ImageInput): Promise<ImageInput> {
+  try {
+    const data = await sharp(Buffer.from(image.data))
+      .resize(STYLIST_THUMBNAIL_SIZE, STYLIST_THUMBNAIL_SIZE, { fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: STYLIST_THUMBNAIL_QUALITY })
+      .toBuffer();
+    return { data, mimeType: "image/jpeg" };
+  } catch {
+    return image; // if it can't be re-encoded, send the original rather than dropping the item
+  }
+}
+
 export async function suggestLooks(items: ItemWithImage[]): Promise<LookDraft[]> {
   if (aiMode() === "mock") return mockLooks(items);
 
   const ai = gemini();
   const wardrobe = items.slice(0, MAX_STYLIST_ITEMS);
+  const thumbnails = await Promise.all(wardrobe.map((item) => stylistThumbnail(item.image)));
   const parts: Part[] = [{ text: STYLIST_PROMPT }];
-  for (const item of wardrobe) {
+  wardrobe.forEach((item, i) => {
     parts.push(
       { text: `id: ${item.id} | category: ${item.category} | colour: ${item.colour} | name: ${item.name}` },
-      imagePart(item.image),
+      imagePart(thumbnails[i]),
     );
-  }
+  });
 
   const response = await withModelFallback(visionModels(), (model) =>
     ai.models.generateContent({

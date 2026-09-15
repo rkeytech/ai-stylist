@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { COLOUR_WORDS } from "./wardrobe";
 
 export function dataDir(): string {
   // Runtime-configurable location; tell Turbopack not to trace it into the build.
@@ -25,13 +26,19 @@ CREATE TABLE IF NOT EXISTS items (
   id         TEXT PRIMARY KEY,
   user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name       TEXT NOT NULL,
-  category   TEXT NOT NULL CHECK (category IN ('top', 'bottom', 'dress', 'shoes', 'outerwear')),
+  category   TEXT NOT NULL CHECK (category IN ('top', 'bottom', 'dress', 'shoes', 'outerwear', 'accessories')),
   colour     TEXT NOT NULL,
   image_path TEXT NOT NULL,
   mime_type  TEXT NOT NULL,
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS items_user ON items (user_id, created_at DESC);
+
+-- Known colour vocabulary: seeded from wardrobe.ts's COLOUR_WORDS and grown whenever
+-- tagging or editing an item introduces one the table doesn't have yet.
+CREATE TABLE IF NOT EXISTS colours (
+  name TEXT PRIMARY KEY COLLATE NOCASE
+);
 
 CREATE TABLE IF NOT EXISTS looks (
   id         TEXT PRIMARY KEY,
@@ -62,6 +69,55 @@ declare global {
   var __styledDb: DatabaseSync | undefined;
 }
 
+/**
+ * SQLite CHECK constraints can't be widened with ALTER TABLE, so a database created before
+ * the "accessories" category existed needs its `items` table rebuilt in place, preserving rows.
+ */
+function migrateAccessoriesCategory(db: DatabaseSync): void {
+  const table = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'items'").get() as
+    | { sql?: string }
+    | undefined;
+  if (!table?.sql || table.sql.includes("accessories")) return;
+
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.exec("ALTER TABLE items RENAME TO items_pre_accessories");
+    db.exec(`
+      CREATE TABLE items (
+        id         TEXT PRIMARY KEY,
+        user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name       TEXT NOT NULL,
+        category   TEXT NOT NULL CHECK (category IN ('top', 'bottom', 'dress', 'shoes', 'outerwear', 'accessories')),
+        colour     TEXT NOT NULL,
+        image_path TEXT NOT NULL,
+        mime_type  TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      )
+    `);
+    db.exec(`
+      INSERT INTO items (id, user_id, name, category, colour, image_path, mime_type, created_at)
+      SELECT id, user_id, name, category, colour, image_path, mime_type, created_at FROM items_pre_accessories
+    `);
+    db.exec("DROP TABLE items_pre_accessories");
+    db.exec("CREATE INDEX IF NOT EXISTS items_user ON items (user_id, created_at DESC)");
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+}
+
+function seedColours(db: DatabaseSync): void {
+  const insert = db.prepare("INSERT OR IGNORE INTO colours (name) VALUES (?)");
+  const seen = new Set<string>();
+  for (const word of COLOUR_WORDS) {
+    const canonical = word === "gray" ? "grey" : word;
+    if (seen.has(canonical)) continue;
+    seen.add(canonical);
+    insert.run(canonical);
+  }
+}
+
 export function getDb(): DatabaseSync {
   if (!globalThis.__styledDb) {
     const dir = dataDir();
@@ -69,6 +125,8 @@ export function getDb(): DatabaseSync {
     const db = new DatabaseSync(path.join(/*turbopackIgnore: true*/ dir, "styled.db"));
     db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
     db.exec(SCHEMA);
+    migrateAccessoriesCategory(db);
+    seedColours(db);
     globalThis.__styledDb = db;
   }
   return globalThis.__styledDb;

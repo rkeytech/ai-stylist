@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #f5f0e8;
+  --color-card: #ebe4d8;
+  --color-ink: #1c1b19;
+  --color-muted: #776f63;
+  --color-line: #d6ccbd;
+  --color-accent: #8a3b2e;
+
+  /* Fixed regardless of theme: dark "viewfinder" chrome (camera panel, modal scrim). */
+  --color-scrim: #1c1b19;
+  --color-scrim-foreground: #f5f0e8;
+}
+
+@theme inline {
+  --font-serif: var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
+  --font-sans: var(--font-jost), "Jost", ui-sans-serif, system-ui, sans-serif;
+}
+
+.dark {
+  --color-paper: #1c1a17;
+  --color-card: #262320;
+  --color-ink: #f2ede4;
+  --color-muted: #a89f90;
+  --color-line: #3a352f;
+  --color-accent: #cf7a5c;
+}
+
+@layer base {
+  html {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    color-scheme: light;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background-color: var(--color-ink);
+    color: var(--color-paper);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .eyebrow {
+    @apply text-[11px] tracking-[0.25em] text-muted uppercase;
+  }
+
+  .display {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-weight: 500;
+    line-height: 1.05;
+  }
+
+  .wordmark {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    letter-spacing: 0.35em;
+    padding-left: 0.35em;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-ink px-6 py-3 text-[12px] tracking-[0.25em] text-paper uppercase transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 border border-ink px-6 py-3 text-[12px] tracking-[0.25em] text-ink uppercase transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .btn-link {
+    @apply text-[11px] tracking-[0.2em] text-muted uppercase underline-offset-4 transition-colors hover:text-ink hover:underline disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline;
+  }
+
+  .chip {
+    @apply border border-line px-3 py-1.5 text-[11px] tracking-[0.2em] text-muted uppercase transition-colors hover:border-ink hover:text-ink;
+  }
+
+  .chip[aria-pressed="true"] {
+    @apply border-ink bg-ink text-paper;
+  }
+
+  .field {
+    @apply w-full rounded-none border-0 border-b border-line bg-transparent px-0 py-2 text-base text-ink outline-none placeholder:text-muted/70 focus:border-ink;
+  }
+}

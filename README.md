@@ -1,0 +1,112 @@
+# Styled — your personal AI stylist
+
+A recreation of the app built in Ania Kubów's video
+[How to Build an AI Virtual Try On App: Live Camera + Vision Model](https://youtu.be/sN2kqWZhss8).
+The video builds it in Lovable on Supabase. This version is a normal Next.js codebase that runs entirely
+on your machine: a SQLite database, private file storage and Google Gemini for the AI.
+
+## Features
+
+| Video chapter | What's in this app |
+| --- | --- |
+| First prompt | Editorial "STYLED" design with three tabs: **Wardrobe**, **Stylist** and **Try-On** |
+| Real authentication | Email and password sign-up (you're signed in straight away), sign-in and sign-out. Every item, look and photo is private to its account. |
+| The Wardrobe | Upload a photo (from your phone camera or library). A Gemini vision model detects the **category** and **main colour**, and names the item if you left the name blank. The grid has category filters (All · Top · Bottom · Dress · Shoes · Outerwear), an empty state and a Remove button. |
+| The AI Stylist | **Style me** sends your wardrobe photos to Gemini, which returns up to **3 looks**. Each look is (top + bottom) or (dress), plus optional shoes and outerwear. A dress is never combined with a top or bottom, and only pieces you own are used. The model considers colour harmony and formality, and each look has a reason that names the actual colours and items. |
+| Live Camera Try-On | A live camera view with a friendly message when permission is denied. Pick a stylist look and press **Try it on** to capture a frame. The Gemini image model generates you wearing the outfit with the same face, pose and background. You see a blurred preview while it renders, then **Save** or **Retry**. |
+| Publish | Git repo ready to push to GitHub. See [Deploying](#deploying). |
+
+Additions beyond the video:
+- A **"Use a photo instead"** fallback when there's no camera.
+- Downloading and deleting saved try-ons.
+- An offline **mock AI mode** for testing without an API key.
+- Server-side validation of every AI outfit, so a model mistake can't produce an invalid look.
+
+## Quick start
+
+Requirements: **Node.js 22.13+** (the app uses the built-in `node:sqlite`).
+
+```bash
+npm install
+cp .env.example .env.local   # then add your GEMINI_API_KEY
+npm run dev
+```
+
+Open http://localhost:3000, create an account and upload a few pieces.
+
+Get a Gemini API key at https://aistudio.google.com/apikey.
+
+### Environment variables
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `GEMINI_API_KEY` | none | Required for the real AI features |
+| `GEMINI_VISION_MODEL` | `gemini-3.1-flash-lite` | Auto-tagging and the stylist (free tier) |
+| `GEMINI_IMAGE_MODEL` | `gemini-3.1-flash-image` | Try-on image generation (needs billing) |
+| `GEMINI_VISION_FALLBACK_MODEL` | `gemini-3.6-flash` | Used when the vision model is overloaded or unavailable. Set it to empty to disable. |
+| `GEMINI_IMAGE_FALLBACK_MODEL` | `gemini-3.1-flash-lite-image` | Used when the image model is overloaded or unavailable. Set it to empty to disable. |
+
+> **Free vs paid Gemini keys:** a free Google AI Studio key covers auto-tagging and the stylist. Image
+> generation has no free quota, so **Try-On needs billing enabled** on the key's project; otherwise
+> Gemini answers `429 quota exceeded` and the app says so. When a model is busy (`503 high demand`),
+> the app switches to the fallback model automatically.
+| `AI_MOCK` | `false` | `true` simulates all AI offline: tags come from the item name, looks are rule-based, and try-on echoes your photo |
+| `DATA_DIR` | `./data` | Location of the SQLite database and uploaded photos |
+
+Without a key and with mock mode off, the app still works for manual uploads (you choose the category and colour
+yourself). The AI buttons then explain how to enable the AI.
+
+## Using it on your phone
+
+Browsers only allow camera access on `https://` or `localhost`. To test from a phone on your Wi-Fi, run the dev
+server with a local certificate and open the https URL it prints, using your computer's IP:
+
+```bash
+npx next dev --experimental-https --hostname 0.0.0.0
+```
+
+## Scripts
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Development server |
+| `npm run build` / `npm start` | Production build and server |
+| `npm run typecheck` | TypeScript check |
+| `npm test` | Unit tests (outfit rules, AI output sanitising, auth hashing, per-user data isolation, mock AI) |
+| `npm run test:e2e -- http://localhost:3000` | End-to-end API run against a server started with `AI_MOCK=true` |
+
+## How it works
+
+```
+src/
+  app/
+    (app)/wardrobe | stylist | try-on   pages behind the sign-in check
+    login, signup                       auth pages
+    api/
+      auth/{signup,login,logout}        session cookie auth
+      items, items/[id]                 wardrobe CRUD (upload runs AI tagging)
+      stylist                           "Style me" -> Gemini vision -> validated looks
+      try-on, try-on/[id]               frame + look -> Gemini image -> save / delete
+      images/[kind]/[id]                serves private photos to their owner only
+  components/                           WardrobeView, StylistView, TryOnView, ...
+  lib/
+    ai.ts        Gemini calls (tagging, stylist, try-on) plus mock mode
+    outfits.ts   outfit rules and sanitising of model output
+    repo.ts      SQLite queries, every one scoped to the signed-in user
+    session.ts   scrypt passwords, hashed session tokens, httpOnly cookies
+    storage.ts   per-user photo storage outside /public
+```
+
+Security notes:
+- Passwords are hashed with scrypt.
+- Only a SHA-256 hash of each session token is stored.
+- Cookies are `httpOnly` and `SameSite=Lax`, and state-changing requests from other origins are rejected.
+- Uploads are checked by magic bytes (JPEG, PNG or WebP only, max 10 MB).
+- Photos are re-encoded in the browser before upload, which strips EXIF data such as GPS location.
+
+## Deploying
+
+The app stores its database and photos on disk, so it needs a host with a **persistent volume**, for example
+a VPS, Railway, Render or Fly.io with a mounted disk. Point `DATA_DIR` at that volume. Serverless platforms
+with ephemeral filesystems (such as a default Vercel deployment) would lose data between requests unless you
+swap `repo.ts` and `storage.ts` for a hosted database and object storage (for example Supabase, as in the video).

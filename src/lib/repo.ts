@@ -1,0 +1,230 @@
+import { randomUUID } from "node:crypto";
+import { getDb, transaction } from "./db";
+import type { ImageMime } from "./image-mime";
+import type { LookDraft } from "./outfits";
+import type { Category, Look, TryOnResult, WardrobeItem } from "./wardrobe";
+
+// Every query that touches user content is scoped by user_id, so one account
+// can never read or change another account's wardrobe, looks or photos.
+
+type Param = string | number | null;
+
+function one<T>(sql: string, ...params: Param[]): T | undefined {
+  return getDb().prepare(sql).get(...params) as unknown as T | undefined;
+}
+
+function many<T>(sql: string, ...params: Param[]): T[] {
+  return getDb().prepare(sql).all(...params) as unknown as T[];
+}
+
+function run(sql: string, ...params: Param[]): number {
+  return Number(getDb().prepare(sql).run(...params).changes);
+}
+
+export interface UserRow {
+  id: string;
+  email: string;
+  password_hash: string;
+  created_at: number;
+}
+
+export interface ItemRow {
+  id: string;
+  user_id: string;
+  name: string;
+  category: Category;
+  colour: string;
+  image_path: string;
+  mime_type: ImageMime;
+  created_at: number;
+}
+
+export interface LookRow {
+  id: string;
+  user_id: string;
+  position: number;
+  title: string;
+  reason: string;
+  item_ids: string;
+  created_at: number;
+}
+
+export interface TryOnRow {
+  id: string;
+  user_id: string;
+  look_id: string | null;
+  look_title: string;
+  image_path: string;
+  mime_type: ImageMime;
+  saved: number;
+  created_at: number;
+}
+
+// ---- users & sessions -------------------------------------------------------
+
+export function createUser(email: string, passwordHash: string): UserRow {
+  const row: UserRow = { id: randomUUID(), email, password_hash: passwordHash, created_at: Date.now() };
+  run(
+    "INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
+    row.id, row.email, row.password_hash, row.created_at,
+  );
+  return row;
+}
+
+export function findUserByEmail(email: string): UserRow | undefined {
+  return one<UserRow>("SELECT * FROM users WHERE email = ?", email);
+}
+
+export function insertSession(tokenHash: string, userId: string, expiresAt: number): void {
+  run("DELETE FROM sessions WHERE expires_at <= ?", Date.now());
+  run("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)", tokenHash, userId, expiresAt);
+}
+
+export function findSessionUser(tokenHash: string, now = Date.now()) {
+  return one<{ id: string; email: string }>(
+    `SELECT u.id, u.email FROM sessions s JOIN users u ON u.id = s.user_id
+     WHERE s.token_hash = ? AND s.expires_at > ?`,
+    tokenHash, now,
+  );
+}
+
+export function deleteSession(tokenHash: string): void {
+  run("DELETE FROM sessions WHERE token_hash = ?", tokenHash);
+}
+
+// ---- wardrobe items ---------------------------------------------------------
+
+export function listItems(userId: string): ItemRow[] {
+  return many<ItemRow>("SELECT * FROM items WHERE user_id = ? ORDER BY created_at DESC, rowid DESC", userId);
+}
+
+export function getItem(userId: string, id: string): ItemRow | undefined {
+  return one<ItemRow>("SELECT * FROM items WHERE user_id = ? AND id = ?", userId, id);
+}
+
+export function insertItem(row: Omit<ItemRow, "created_at">): ItemRow {
+  const full: ItemRow = { ...row, created_at: Date.now() };
+  run(
+    `INSERT INTO items (id, user_id, name, category, colour, image_path, mime_type, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    full.id, full.user_id, full.name, full.category, full.colour, full.image_path, full.mime_type, full.created_at,
+  );
+  return full;
+}
+
+/** Deletes the item and any saved stylist look that relied on it. Returns the removed row. */
+export function deleteItem(userId: string, id: string): ItemRow | undefined {
+  return transaction(() => {
+    const item = getItem(userId, id);
+    if (!item) return undefined;
+    run("DELETE FROM items WHERE user_id = ? AND id = ?", userId, id);
+    run(
+      `DELETE FROM looks WHERE user_id = ?
+       AND EXISTS (SELECT 1 FROM json_each(looks.item_ids) WHERE json_each.value = ?)`,
+      userId, id,
+    );
+    return item;
+  });
+}
+
+// ---- stylist looks ----------------------------------------------------------
+
+/** The stylist keeps the latest set of looks per user; a new "Style me" replaces it. */
+export function replaceLooks(userId: string, drafts: LookDraft[]): LookRow[] {
+  return transaction(() => {
+    run("DELETE FROM looks WHERE user_id = ?", userId);
+    const now = Date.now();
+    return drafts.map((draft, position) => {
+      const row: LookRow = {
+        id: randomUUID(),
+        user_id: userId,
+        position,
+        title: draft.title,
+        reason: draft.reason,
+        item_ids: JSON.stringify(draft.itemIds),
+        created_at: now,
+      };
+      run(
+        `INSERT INTO looks (id, user_id, position, title, reason, item_ids, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        row.id, row.user_id, row.position, row.title, row.reason, row.item_ids, row.created_at,
+      );
+      return row;
+    });
+  });
+}
+
+export function listLooks(userId: string): LookRow[] {
+  return many<LookRow>("SELECT * FROM looks WHERE user_id = ? ORDER BY position", userId);
+}
+
+export function getLook(userId: string, id: string): LookRow | undefined {
+  return one<LookRow>("SELECT * FROM looks WHERE user_id = ? AND id = ?", userId, id);
+}
+
+// ---- try-on results ---------------------------------------------------------
+
+export function insertTryOn(row: Omit<TryOnRow, "created_at" | "saved">): TryOnRow {
+  const full: TryOnRow = { ...row, saved: 0, created_at: Date.now() };
+  run(
+    `INSERT INTO tryons (id, user_id, look_id, look_title, image_path, mime_type, saved, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, 0, ?)`,
+    full.id, full.user_id, full.look_id, full.look_title, full.image_path, full.mime_type, full.created_at,
+  );
+  return full;
+}
+
+export function getTryOn(userId: string, id: string): TryOnRow | undefined {
+  return one<TryOnRow>("SELECT * FROM tryons WHERE user_id = ? AND id = ?", userId, id);
+}
+
+export function listTryOns(userId: string, saved: boolean): TryOnRow[] {
+  return many<TryOnRow>(
+    "SELECT * FROM tryons WHERE user_id = ? AND saved = ? ORDER BY created_at DESC, rowid DESC",
+    userId, saved ? 1 : 0,
+  );
+}
+
+export function markTryOnSaved(userId: string, id: string): boolean {
+  return run("UPDATE tryons SET saved = 1 WHERE user_id = ? AND id = ?", userId, id) > 0;
+}
+
+export function deleteTryOn(userId: string, id: string): TryOnRow | undefined {
+  const row = getTryOn(userId, id);
+  if (row) run("DELETE FROM tryons WHERE user_id = ? AND id = ?", userId, id);
+  return row;
+}
+
+// ---- API shapes -------------------------------------------------------------
+
+export function toWardrobeItem(row: ItemRow): WardrobeItem {
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    colour: row.colour,
+    imageUrl: `/api/images/item/${row.id}`,
+    createdAt: row.created_at,
+  };
+}
+
+export function toLook(row: LookRow): Look {
+  return {
+    id: row.id,
+    title: row.title,
+    reason: row.reason,
+    itemIds: JSON.parse(row.item_ids) as string[],
+    createdAt: row.created_at,
+  };
+}
+
+export function toTryOn(row: TryOnRow): TryOnResult {
+  return {
+    id: row.id,
+    lookId: row.look_id,
+    lookTitle: row.look_title,
+    imageUrl: `/api/images/tryon/${row.id}`,
+    saved: row.saved === 1,
+    createdAt: row.created_at,
+  };
+}

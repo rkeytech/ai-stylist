@@ -1,0 +1,109 @@
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import type { AiMode } from "@/lib/ai";
+import { apiFetch, errorMessage } from "@/lib/api-client";
+import { canStyle, MAX_LOOKS } from "@/lib/outfits";
+import type { Look, WardrobeItem } from "@/lib/wardrobe";
+import { AiNotice, ErrorNote, LookPieces, lookNumber, PageHeading } from "./ui";
+
+export function StylistView({
+  items,
+  initialLooks,
+  aiMode,
+}: {
+  items: WardrobeItem[];
+  initialLooks: Look[];
+  aiMode: AiMode;
+}) {
+  const [looks, setLooks] = useState(initialLooks);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const itemsById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
+  const ready = canStyle(items);
+
+  async function styleMe() {
+    setPending(true);
+    setError(null);
+    try {
+      const data = await apiFetch<{ looks: Look[] }>("/api/stylist", { method: "POST" });
+      setLooks(data.looks);
+    } catch (err) {
+      setError(errorMessage(err, "The stylist couldn't finish. Please try again."));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div>
+      <PageHeading
+        eyebrow="The Column"
+        title="Stylist"
+        intro="Three looks, styled from what already hangs in your wardrobe - with a line on why each one works."
+      />
+      <AiNotice mode={aiMode} />
+
+      <button type="button" onClick={styleMe} disabled={!ready || pending} className="btn-primary mt-8 w-full py-4">
+        {pending ? "Styling your wardrobe…" : looks.length > 0 ? "Style me again" : "Style me"}
+      </button>
+
+      {!ready && (
+        <p className="mt-3 text-center text-sm text-muted">
+          Add at least a top and a bottom, or a dress, to your{" "}
+          <Link href="/wardrobe" className="text-ink underline underline-offset-4">
+            wardrobe
+          </Link>{" "}
+          first.
+        </p>
+      )}
+
+      {error && <ErrorNote>{error}</ErrorNote>}
+
+      {pending ? (
+        <div className="mt-10 space-y-12" aria-busy="true" aria-label="Styling in progress">
+          {[0, 1, 2].map((key) => (
+            <div key={key} className="animate-pulse border-t border-line pt-8">
+              <div className="h-3 w-16 bg-card" />
+              <div className="mt-3 h-9 w-64 bg-card" />
+              <div className="mt-5 flex gap-3">
+                {[0, 1, 2].map((piece) => (
+                  <div key={piece} className="aspect-square w-28 bg-card sm:w-36" />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : looks.length === 0 ? (
+        ready && (
+          <p className="mt-10 text-center text-muted">
+            Press &ldquo;Style me&rdquo; and your stylist will put outfits together from your pieces.
+          </p>
+        )
+      ) : (
+        <div className="mt-10 space-y-12">
+          {looks.map((look, index) => (
+            <article key={look.id} className="border-t border-line pt-8">
+              <p className="eyebrow">Look {lookNumber(index)}</p>
+              <h2 className="display mt-1 text-4xl">{look.title}</h2>
+              <div className="mt-5">
+                <LookPieces itemIds={look.itemIds} itemsById={itemsById} />
+              </div>
+              <p className="mt-5 max-w-2xl leading-relaxed">{look.reason}</p>
+              <Link href={`/try-on?look=${look.id}`} className="btn-outline mt-6">
+                Try this look on
+              </Link>
+            </article>
+          ))}
+          {looks.length < MAX_LOOKS && (
+            <p className="border-t border-line pt-6 text-sm text-muted">
+              Only {looks.length} valid {looks.length === 1 ? "look" : "looks"} this time - add more pieces to your
+              wardrobe for more variety.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

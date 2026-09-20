@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Styled — a personal AI stylist app (recreation of a Lovable/Supabase tutorial app, rebuilt as a plain Next.js
-codebase running entirely on the local machine: SQLite, private on-disk file storage, and OpenRouter for AI).
+Atelier — a personal AI stylist app, a plain Next.js codebase running entirely on the local machine: SQLite,
+private on-disk file storage, and OpenRouter for AI.
 Two features behind auth right now: **Wardrobe** (upload + auto-tag clothing photos), **Stylist** ("Style me" →
 up to 3 AI-generated outfit looks). **Try-On** (live camera capture + AI image generation wearing a chosen look)
 is temporarily disabled — see "Try-On is disabled" below.
@@ -143,13 +143,22 @@ category existed — SQLite can't widen a CHECK constraint with `ALTER TABLE`.
 - Every `repo.ts` query is scoped by `user_id`; there is no other access-control layer, so any new query touching
   user data must include that scope.
 
+## Feature plan / roadmap
+
+`docs/feature-plan.md` is the living task list of what's done, in progress, planned, and still being discussed
+for this app. **Read it before starting feature work** — it has its own instructions for keeping it current
+(checking off finished items, moving started work into "In progress", filing new asks under "Backlog" or
+"Ideas / needs discussion"). Treat it as the source of truth for project status; treat this file as the source
+of truth for how the code currently works.
+
 ## Repo state / in-flight plans
 
 `docs/mobile-plan.md` is an untracked planning doc for a future phase: adding bearer-token mobile auth, new
 `/api/auth/me` and `/api/health` endpoints, login throttling, an `ALLOWED_ORIGINS` env var, Dockerizing the app,
 and a companion Flutter Android app. None of that is implemented yet — treat it as a plan, not current behavior,
 but its "ground truth about the current codebase" section (§4) is a useful second description of the API
-contract and design tokens if this file and the code ever seem to disagree.
+contract and design tokens if this file and the code ever seem to disagree. It's tracked as a backlog item in
+`docs/feature-plan.md`.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

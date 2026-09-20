@@ -1,28 +1,24 @@
-# Styled — your personal AI stylist
+# Atelier — a private wardrobe and AI stylist
 
-A recreation of the app built in Ania Kubów's video
-[How to Build an AI Virtual Try On App: Live Camera + Vision Model](https://youtu.be/sN2kqWZhss8).
-The video builds it in Lovable on Supabase. This version is a normal Next.js codebase that runs entirely
-on your machine: a SQLite database, private file storage and OpenRouter for the AI.
+A normal Next.js codebase that runs entirely on your machine: a SQLite database, private file storage and
+OpenRouter for the AI.
 
-> **Try-On is temporarily disabled.** It previously used a Gemini image model for the camera-based
-> outfit generation; that's been removed and nothing has replaced it yet, so the tab and the "Try this
-> look on" links are hidden. The camera flow, API routes and saved-try-on storage are still in the
-> codebase (see `src/components/TryOnView.tsx`) and can be wired back up to an image-generation
-> provider later.
+> **Try-On is temporarily disabled.** It previously used an image model for the camera-based outfit
+> generation; that's been removed and nothing has replaced it yet, so the tab and the "Try this look on"
+> links are hidden. The camera flow, API routes and saved-try-on storage are still in the codebase
+> (see `src/components/TryOnView.tsx`) and can be wired back up to an image-generation provider later.
 
 ## Features
 
-| Video chapter | What's in this app |
+| Feature | What it does |
 | --- | --- |
-| First prompt | Editorial "STYLED" design with two tabs: **Wardrobe** and **Stylist** (Try-On is temporarily disabled - see above) |
+| Editorial design | An "ATELIER" masthead with two tabs: **Wardrobe** and **Stylist** (Try-On is temporarily disabled - see above) |
 | Real authentication | Email and password sign-up (you're signed in straight away), sign-in and sign-out. Every item, look and photo is private to its account. |
 | The Wardrobe | Upload a photo (from your phone camera or library). A vision model (via OpenRouter) detects the **category** and **main colour**, and names the item if you left the name blank. The grid has category filters (All · Top · Bottom · Dress · Shoes · Outerwear), an empty state and a Remove button. |
 | The AI Stylist | **Style me** sends your wardrobe photos through OpenRouter, which returns up to **3 looks**. Each look is (top + bottom) or (dress), plus optional shoes and outerwear. A dress is never combined with a top or bottom, and only pieces you own are used. The model considers colour harmony and formality, and each look has a reason that names the actual colours and items. |
-| Live Camera Try-On | *Temporarily disabled* - was a live camera view where you could pick a stylist look and generate yourself wearing the outfit. |
-| Publish | Git repo ready to push to GitHub. See [Deploying](#deploying). |
+| Live Camera Try-On | *Temporarily disabled* - a live camera view where you could pick a stylist look and generate yourself wearing the outfit. |
 
-Additions beyond the video:
+Extras:
 - A **"Use a photo instead"** fallback when there's no camera.
 - Downloading and deleting saved try-ons.
 - An offline **mock AI mode** for testing without an API key.
@@ -117,4 +113,4 @@ Security notes:
 The app stores its database and photos on disk, so it needs a host with a **persistent volume**, for example
 a VPS, Railway, Render or Fly.io with a mounted disk. Point `DATA_DIR` at that volume. Serverless platforms
 with ephemeral filesystems (such as a default Vercel deployment) would lose data between requests unless you
-swap `repo.ts` and `storage.ts` for a hosted database and object storage (for example Supabase, as in the video).
+swap `repo.ts` and `storage.ts` for a hosted database and object storage.

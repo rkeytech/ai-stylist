@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 @theme {
-  --color-paper: #f5f0e8;
-  --color-card: #ebe4d8;
-  --color-ink: #1c1b19;
-  --color-muted: #776f63;
-  --color-line: #d6ccbd;
-  --color-accent: #8a3b2e;
+  --color-paper: #f6f4ee;
+  --color-card: #ebe7db;
+  --color-ink: #16181a;
+  --color-muted: #666e67;
+  --color-line: #d7d2c3;
+  --color-accent: #2f4a3d;
 
   /* Fixed regardless of theme: dark "viewfinder" chrome (camera panel, modal scrim). */
-  --color-scrim: #1c1b19;
-  --color-scrim-foreground: #f5f0e8;
+  --color-scrim: #16181a;
+  --color-scrim-foreground: #f6f4ee;
 }
 
 @theme inline {
@@ -19,12 +19,12 @@
 }
 
 .dark {
-  --color-paper: #1c1a17;
-  --color-card: #262320;
-  --color-ink: #f2ede4;
-  --color-muted: #a89f90;
-  --color-line: #3a352f;
-  --color-accent: #cf7a5c;
+  --color-paper: #14161a;
+  --color-card: #1f2226;
+  --color-ink: #ece9e1;
+  --color-muted: #9aa39a;
+  --color-line: #32383a;
+  --color-accent: #71b393;
 }
 
 @layer base {

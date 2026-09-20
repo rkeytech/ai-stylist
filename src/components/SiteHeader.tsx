@@ -22,38 +22,45 @@ export function SiteHeader({ email }: { email: string }) {
 
   return (
     <header className="border-b border-line">
-      <div className="relative mx-auto max-w-6xl px-5 pt-10 pb-6 text-center sm:px-8">
-        <Link href="/wardrobe" className="wordmark text-4xl sm:text-5xl">
-          STYLED
-        </Link>
-        <p className="eyebrow mt-2">Your personal stylist</p>
-        <div className="absolute top-3 right-4 flex items-center gap-4 sm:top-8 sm:right-8">
-          <ThemeToggle />
-          <span className="hidden text-xs text-muted md:inline" title="Signed in">
-            {email}
-          </span>
-          <button type="button" onClick={signOut} disabled={signingOut} className="btn-link">
-            {signingOut ? "Signing out…" : "Sign out"}
-          </button>
+      <div className="mx-auto max-w-6xl px-5 sm:px-8">
+        <div className="flex items-center justify-between border-b border-line py-3 text-[10px] tracking-[0.3em] text-muted uppercase">
+          <span>Private Edition</span>
+          <div className="flex items-center gap-4">
+            <ThemeToggle />
+            <span className="hidden md:inline" title="Signed in">
+              {email}
+            </span>
+            <button type="button" onClick={signOut} disabled={signingOut} className="btn-link !text-[10px]">
+              {signingOut ? "Signing out…" : "Sign out"}
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-baseline justify-between gap-3 py-6">
+          <Link href="/wardrobe" className="wordmark text-4xl sm:text-5xl">
+            ATELIER
+          </Link>
+          <p className="eyebrow">Wardrobe, considered</p>
         </div>
       </div>
-      <nav aria-label="Main" className="mx-auto grid max-w-6xl grid-cols-2">
-        {TABS.map((tab) => {
-          const active = pathname.startsWith(tab.href);
-          return (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              aria-current={active ? "page" : undefined}
-              className={`relative py-4 text-center text-[12px] tracking-[0.25em] uppercase transition-colors ${
-                active ? "text-ink" : "text-muted hover:text-ink"
-              }`}
-            >
-              {tab.label}
-              {active && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-accent" />}
-            </Link>
-          );
-        })}
+      <nav aria-label="Main" className="border-t border-line">
+        <div className="mx-auto flex max-w-6xl gap-8 px-5 sm:px-8">
+          {TABS.map((tab) => {
+            const active = pathname.startsWith(tab.href);
+            return (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                aria-current={active ? "page" : undefined}
+                className={`relative py-4 text-[12px] tracking-[0.25em] uppercase transition-colors ${
+                  active ? "text-ink" : "text-muted hover:text-ink"
+                }`}
+              >
+                {tab.label}
+                {active && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-accent" />}
+              </Link>
+            );
+          })}
+        </div>
       </nav>
     </header>
   );

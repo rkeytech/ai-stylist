@@ -13,14 +13,14 @@ const serif = Cormorant_Garamond({
 const sans = Jost({ subsets: ["latin"], variable: "--font-jost" });
 
 export const metadata: Metadata = {
-  title: { default: "Styled - Your Personal Stylist", template: "%s · Styled" },
-  description: "Your wardrobe, an AI stylist and a camera try-on in one place.",
+  title: { default: "Atelier — A Private Wardrobe", template: "%s · Atelier" },
+  description: "A private wardrobe and AI stylist, kept entirely on your own machine.",
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f5f0e8" },
-    { media: "(prefers-color-scheme: dark)", color: "#1c1a17" },
+    { media: "(prefers-color-scheme: light)", color: "#f6f4ee" },
+    { media: "(prefers-color-scheme: dark)", color: "#14161a" },
   ],
 };
 

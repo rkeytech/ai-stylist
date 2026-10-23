@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { getDb, transaction } from "./db";
 import type { ImageMime } from "./image-mime";
 import type { LookDraft } from "./outfits";
-import type { Category, Look, TryOnResult, WardrobeItem } from "./wardrobe";
+import type { Category, Collection, Look, TryOnResult, WardrobeItem } from "./wardrobe";
 
 // Every query that touches user content is scoped by user_id, so one account
 // can never read or change another account's wardrobe, looks or photos.
@@ -47,7 +47,20 @@ export interface LookRow {
   reason: string;
   item_ids: string;
   occasion: string | null;
+  collection_name: string | null;
   created_at: number;
+}
+
+export interface CollectionRow {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: number;
+}
+
+/** A collection row plus its member item ids (newest item first). */
+export interface CollectionWithItems extends CollectionRow {
+  item_ids: string[];
 }
 
 export interface TryOnRow {
@@ -154,10 +167,108 @@ export function addColour(name: string): void {
   if (value) run("INSERT OR IGNORE INTO colours (name) VALUES (?)", value);
 }
 
+// ---- collections ------------------------------------------------------------
+
+function memberIds(userId: string, collectionIds: string[]): Map<string, string[]> {
+  const byCollection = new Map<string, string[]>(collectionIds.map((id) => [id, []]));
+  const rows = many<{ collection_id: string; item_id: string }>(
+    `SELECT ci.collection_id, ci.item_id FROM collection_items ci
+     JOIN collections c ON c.id = ci.collection_id
+     JOIN items i ON i.id = ci.item_id
+     WHERE c.user_id = ? AND i.user_id = ?
+     ORDER BY i.created_at DESC, i.rowid DESC`,
+    userId, userId,
+  );
+  for (const row of rows) byCollection.get(row.collection_id)?.push(row.item_id);
+  return byCollection;
+}
+
+export function listCollections(userId: string): CollectionWithItems[] {
+  const rows = many<CollectionRow>(
+    "SELECT * FROM collections WHERE user_id = ? ORDER BY created_at DESC, rowid DESC",
+    userId,
+  );
+  const members = memberIds(userId, rows.map((row) => row.id));
+  return rows.map((row) => ({ ...row, item_ids: members.get(row.id) ?? [] }));
+}
+
+export function getCollection(userId: string, id: string): CollectionWithItems | undefined {
+  const row = one<CollectionRow>("SELECT * FROM collections WHERE user_id = ? AND id = ?", userId, id);
+  return row && { ...row, item_ids: memberIds(userId, [row.id]).get(row.id) ?? [] };
+}
+
+/** Names are unique per user, ignoring case; pass `exceptId` when renaming so a collection doesn't clash with itself. */
+export function collectionNameTaken(userId: string, name: string, exceptId: string | null = null): boolean {
+  return (
+    one(
+      "SELECT 1 FROM collections WHERE user_id = ? AND name = ? COLLATE NOCASE AND id IS NOT ?",
+      userId, name, exceptId,
+    ) !== undefined
+  );
+}
+
+export function createCollection(userId: string, name: string): CollectionWithItems {
+  const row: CollectionRow = { id: randomUUID(), user_id: userId, name, created_at: Date.now() };
+  run(
+    "INSERT INTO collections (id, user_id, name, created_at) VALUES (?, ?, ?, ?)",
+    row.id, row.user_id, row.name, row.created_at,
+  );
+  return { ...row, item_ids: [] };
+}
+
+export function renameCollection(userId: string, id: string, name: string): CollectionWithItems | undefined {
+  const changed = run("UPDATE collections SET name = ? WHERE user_id = ? AND id = ?", name, userId, id);
+  return changed > 0 ? getCollection(userId, id) : undefined;
+}
+
+/** Removes the collection and its memberships; the items themselves stay in the wardrobe. */
+export function deleteCollection(userId: string, id: string): boolean {
+  return run("DELETE FROM collections WHERE user_id = ? AND id = ?", userId, id) > 0;
+}
+
+/**
+ * Replaces the collection's membership wholesale. Only ids of the user's own items are ever linked
+ * (the INSERT selects from `items` scoped by user_id), so a foreign id is silently skipped here -
+ * routes should reject unknown ids up front to give the caller a clear error.
+ */
+export function setCollectionItems(userId: string, id: string, itemIds: string[]): CollectionWithItems | undefined {
+  return transaction(() => {
+    if (!one("SELECT 1 FROM collections WHERE user_id = ? AND id = ?", userId, id)) return undefined;
+    run("DELETE FROM collection_items WHERE collection_id = ?", id);
+    for (const itemId of new Set(itemIds)) {
+      run(
+        "INSERT INTO collection_items (collection_id, item_id) SELECT ?, id FROM items WHERE user_id = ? AND id = ?",
+        id, userId, itemId,
+      );
+    }
+    return getCollection(userId, id);
+  });
+}
+
+/** The full item rows in a collection, for the stylist to draw from. */
+export function listCollectionItems(userId: string, collectionId: string): ItemRow[] {
+  return many<ItemRow>(
+    `SELECT i.* FROM items i
+     JOIN collection_items ci ON ci.item_id = i.id
+     JOIN collections c ON c.id = ci.collection_id
+     WHERE i.user_id = ? AND c.user_id = ? AND c.id = ?
+     ORDER BY i.created_at DESC, i.rowid DESC`,
+    userId, userId, collectionId,
+  );
+}
+
 // ---- stylist looks ----------------------------------------------------------
 
-/** The stylist keeps the latest set of looks per user; a new "Style me" replaces it. */
-export function replaceLooks(userId: string, drafts: LookDraft[], occasion: string | null = null): LookRow[] {
+/**
+ * The stylist keeps the latest set of looks per user; a new "Style me" replaces it. `occasion` and
+ * `collectionName` record what produced the batch so the UI can label it.
+ */
+export function replaceLooks(
+  userId: string,
+  drafts: LookDraft[],
+  occasion: string | null = null,
+  collectionName: string | null = null,
+): LookRow[] {
   return transaction(() => {
     run("DELETE FROM looks WHERE user_id = ?", userId);
     const now = Date.now();
@@ -170,12 +281,14 @@ export function replaceLooks(userId: string, drafts: LookDraft[], occasion: stri
         reason: draft.reason,
         item_ids: JSON.stringify(draft.itemIds),
         occasion,
+        collection_name: collectionName,
         created_at: now,
       };
       run(
-        `INSERT INTO looks (id, user_id, position, title, reason, item_ids, occasion, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        row.id, row.user_id, row.position, row.title, row.reason, row.item_ids, row.occasion, row.created_at,
+        `INSERT INTO looks (id, user_id, position, title, reason, item_ids, occasion, collection_name, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        row.id, row.user_id, row.position, row.title, row.reason, row.item_ids, row.occasion, row.collection_name,
+        row.created_at,
       );
       return row;
     });
@@ -243,8 +356,13 @@ export function toLook(row: LookRow): Look {
     reason: row.reason,
     itemIds: JSON.parse(row.item_ids) as string[],
     occasion: row.occasion,
+    collection: row.collection_name,
     createdAt: row.created_at,
   };
+}
+
+export function toCollection(row: CollectionWithItems): Collection {
+  return { id: row.id, name: row.name, itemIds: row.item_ids, createdAt: row.created_at };
 }
 
 export function toTryOn(row: TryOnRow): TryOnResult {

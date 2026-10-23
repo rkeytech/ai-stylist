@@ -5,22 +5,30 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeDb } from "@/lib/db";
 import {
   addColour,
+  collectionNameTaken,
+  createCollection,
   createUser,
+  deleteCollection,
   deleteItem,
   deleteSession,
   findSessionUser,
   findUserByEmail,
+  getCollection,
   getItem,
   getTryOn,
   insertItem,
   insertSession,
   insertTryOn,
+  listCollectionItems,
+  listCollections,
   listColours,
   listItems,
   listLooks,
   listTryOns,
   markTryOnSaved,
+  renameCollection,
   replaceLooks,
+  setCollectionItems,
   toLook,
   updateItem,
 } from "@/lib/repo";
@@ -151,5 +159,69 @@ describe("looks", () => {
 
     replaceLooks(user.id, [{ title: "Any look", reason: "r", itemIds: ["dress-b"] }]);
     expect(toLook(listLooks(user.id)[0]).occasion).toBeNull();
+  });
+
+  it("snapshots the collection a batch was drawn from", () => {
+    const user = createUser("looks-collection@example.com", "hash");
+    addItem(user.id, "dress-c", "dress");
+
+    replaceLooks(user.id, [{ title: "Work look", reason: "r", itemIds: ["dress-c"] }], "Work", "Office");
+    expect(toLook(listLooks(user.id)[0])).toMatchObject({ occasion: "Work", collection: "Office" });
+  });
+});
+
+describe("collections", () => {
+  it("creates, renames and enforces case-insensitive unique names per user", () => {
+    const alice = createUser("coll-alice@example.com", "hash");
+    const bob = createUser("coll-bob@example.com", "hash");
+    const work = createCollection(alice.id, "Work");
+
+    expect(collectionNameTaken(alice.id, "work")).toBe(true);
+    expect(collectionNameTaken(alice.id, "WORK", work.id)).toBe(false);
+    expect(collectionNameTaken(bob.id, "Work")).toBe(false);
+    expect(() => createCollection(alice.id, "WORK")).toThrow();
+
+    expect(renameCollection(alice.id, work.id, "Office")?.name).toBe("Office");
+    expect(listCollections(alice.id).map((c) => c.name)).toEqual(["Office"]);
+  });
+
+  it("only ever links the owner's items and keeps items when the collection is deleted", () => {
+    const alice = createUser("coll-members@example.com", "hash");
+    const bob = createUser("coll-members-bob@example.com", "hash");
+    addItem(alice.id, "c-top", "top");
+    addItem(alice.id, "c-bottom", "bottom");
+    addItem(bob.id, "c-bob-dress", "dress");
+    const travel = createCollection(alice.id, "Travel");
+
+    const updated = setCollectionItems(alice.id, travel.id, ["c-top", "c-bottom", "c-top", "c-bob-dress"]);
+    expect(updated?.item_ids.sort()).toEqual(["c-bottom", "c-top"]);
+    expect(listCollectionItems(alice.id, travel.id).map((item) => item.id).sort()).toEqual(["c-bottom", "c-top"]);
+
+    setCollectionItems(alice.id, travel.id, ["c-top"]);
+    expect(getCollection(alice.id, travel.id)?.item_ids).toEqual(["c-top"]);
+
+    deleteItem(alice.id, "c-top");
+    expect(getCollection(alice.id, travel.id)?.item_ids).toEqual([]);
+
+    expect(deleteCollection(alice.id, travel.id)).toBe(true);
+    expect(getCollection(alice.id, travel.id)).toBeUndefined();
+    expect(getItem(alice.id, "c-bottom")).toBeDefined();
+  });
+
+  it("never exposes or changes another user's collection", () => {
+    const alice = createUser("coll-private@example.com", "hash");
+    const bob = createUser("coll-private-bob@example.com", "hash");
+    addItem(alice.id, "p-dress", "dress");
+    addItem(bob.id, "p-bob-top", "top");
+    const secret = createCollection(alice.id, "Secret");
+    setCollectionItems(alice.id, secret.id, ["p-dress"]);
+
+    expect(listCollections(bob.id)).toEqual([]);
+    expect(getCollection(bob.id, secret.id)).toBeUndefined();
+    expect(listCollectionItems(bob.id, secret.id)).toEqual([]);
+    expect(renameCollection(bob.id, secret.id, "Mine")).toBeUndefined();
+    expect(setCollectionItems(bob.id, secret.id, ["p-bob-top"])).toBeUndefined();
+    expect(deleteCollection(bob.id, secret.id)).toBe(false);
+    expect(getCollection(alice.id, secret.id)).toMatchObject({ name: "Secret", item_ids: ["p-dress"] });
   });
 });

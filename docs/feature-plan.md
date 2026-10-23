@@ -43,6 +43,7 @@ Status markers used below: `[x]` done and shipped, `[~]` in progress, `[ ]` not 
 - [x] Upload hardening — magic-byte MIME sniffing, 10MB cap, client-side re-encode to strip EXIF/GPS
 - [x] Per-user data isolation — every `repo.ts` query scoped by `user_id`; verified by `npm run test:e2e`'s privacy checks
 - [x] Occasion-based styling — `POST /api/stylist` takes an optional JSON `{ occasion }` (free text, capped at 80 chars; no body = general styling). Passed to the model as quoted data in `suggestLooks(items, { occasion })`, stored in the nullable `looks.occasion` column (added by `migrateLookOccasion()` in `db.ts`), shown as chips + a text field on the Stylist page and labelled above the results. Mock mode ignores it. Later `collectionId` / `anchorItemId` should join this same body.
+- [x] Collections — named, per-user sets of wardrobe items (many-to-many: `collections` + `collection_items`, cascade-deleted, names unique per user ignoring case). Routes `/api/collections` (GET/POST), `/api/collections/[id]` (GET/PATCH/DELETE), `/api/collections/[id]/items` (PUT, replaces membership; foreign/unknown item ids → 400). Collections nav tab, list/create page, detail page with rename/delete and tap-to-select item grid. `POST /api/stylist` accepts `collectionId` alongside `occasion` (404 if not the user's; 422 if the set can't form an outfit); the batch snapshots the collection name in `looks.collection_name` and the Stylist page has a "Draw from" picker (preselected via `/stylist?collection=<id>`).
 - [x] Rebrand: "Styled" → "Atelier" — README, page titles/nav, `AuthForm.tsx` copy, OpenRouter `X-Title`; landed in the "changed to openrouter" commits (verified 2026-10-23: clean tree, typecheck + unit tests pass)
 
 ## In progress
@@ -60,19 +61,6 @@ Status markers used below: `[x]` done and shipped, `[~]` in progress, `[ ]` not 
 
 ## Backlog (scoped, ready to pick up)
 
-- [ ] **Collections** — let the user group uploaded items into named sets (e.g. "Work", "Travel capsule") and
-      style from just one set instead of the whole wardrobe. Naming decided with the user on 2026-09-15:
-      "Collections", *not* "Wardrobes" — the existing `/wardrobe` page already means "everything you own", so a
-      second page called "wardrobes" would be confusing. Design sketch for whoever picks this up:
-  - Many-to-many: an item can belong to any number of collections (or none). New tables `collections`
-    (id, user_id, name, created_at) and `collection_items` (collection_id, item_id) — both cascade-deleted via
-    existing FKs, no manual cleanup needed when an item or collection is removed.
-  - New repo.ts functions: create/list/get/rename/delete collection, plus setCollectionItems (replace membership
-    wholesale) and listCollectionItems — every one scoped by user_id per the security posture in `CLAUDE.md`.
-  - New routes: `/api/collections` (GET/POST), `/api/collections/[id]` (GET/PATCH/DELETE),
-    `/api/collections/[id]/items` (PUT to set membership).
-  - New UI: a "Collections" nav tab, a list/create page, and a detail page to rename/delete a collection and
-    check which uploaded items belong to it.
 - [ ] **Style around one item** — let the user pick a single wardrobe item and ask for 3 looks that all include
       it. Design sketch:
   - Same unified `POST /api/stylist` body gets an optional `anchorItemId`. `sanitizeLooks`/`mockLooks` in

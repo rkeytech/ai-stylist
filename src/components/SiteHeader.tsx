@@ -7,6 +7,7 @@ import { ThemeToggle } from "./ThemeToggle";
 
 const TABS = [
   { href: "/wardrobe", label: "Wardrobe" },
+  { href: "/collections", label: "Collections" },
   { href: "/stylist", label: "Stylist" },
 ];
 

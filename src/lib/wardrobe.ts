@@ -40,6 +40,8 @@ export interface Look {
   itemIds: string[];
   /** What the batch was styled for ("Dinner", "Work"...), or null for a general "Style me". */
   occasion: string | null;
+  /** Name of the collection the batch was drawn from, or null for the whole wardrobe. */
+  collection: string | null;
   createdAt: number;
 }
 
@@ -47,6 +49,15 @@ export const MAX_OCCASION_LENGTH = 80;
 
 /** Quick picks shown as chips on the Stylist page; free text is accepted too. */
 export const OCCASION_SUGGESTIONS = ["Casual", "Work", "Formal", "Dinner", "Coffee", "Night out", "Rainy day"] as const;
+
+export interface Collection {
+  id: string;
+  name: string;
+  itemIds: string[];
+  createdAt: number;
+}
+
+export const MAX_COLLECTION_NAME_LENGTH = 40;
 
 export interface TryOnResult {
   id: string;

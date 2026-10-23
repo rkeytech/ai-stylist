@@ -62,6 +62,24 @@ CREATE TABLE IF NOT EXISTS tryons (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS tryons_user ON tryons (user_id, created_at DESC);
+
+-- Named, user-owned groups of items ("Work", "Travel capsule"). An item can sit in any number of
+-- collections; deleting either side removes the membership rows through the cascading FKs.
+CREATE TABLE IF NOT EXISTS collections (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  UNIQUE (user_id, name COLLATE NOCASE)
+);
+CREATE INDEX IF NOT EXISTS collections_user ON collections (user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS collection_items (
+  collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+  item_id       TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+  PRIMARY KEY (collection_id, item_id)
+);
+CREATE INDEX IF NOT EXISTS collection_items_item ON collection_items (item_id);
 `;
 
 declare global {
@@ -113,6 +131,17 @@ function migrateLookOccasion(db: DatabaseSync): void {
   if (!columns.some((column) => column.name === "occasion")) db.exec("ALTER TABLE looks ADD COLUMN occasion TEXT");
 }
 
+/**
+ * Looks also remember the name of the collection they were styled from (a snapshot, like
+ * `tryons.look_title`, so the label survives the collection being renamed or deleted).
+ */
+function migrateLookCollection(db: DatabaseSync): void {
+  const columns = db.prepare("PRAGMA table_info(looks)").all() as { name: string }[];
+  if (!columns.some((column) => column.name === "collection_name")) {
+    db.exec("ALTER TABLE looks ADD COLUMN collection_name TEXT");
+  }
+}
+
 function seedColours(db: DatabaseSync): void {
   const insert = db.prepare("INSERT OR IGNORE INTO colours (name) VALUES (?)");
   const seen = new Set<string>();
@@ -133,6 +162,7 @@ export function getDb(): DatabaseSync {
     db.exec(SCHEMA);
     migrateAccessoriesCategory(db);
     migrateLookOccasion(db);
+    migrateLookCollection(db);
     seedColours(db);
     globalThis.__styledDb = db;
   }

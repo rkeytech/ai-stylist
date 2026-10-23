@@ -5,24 +5,40 @@ import { useMemo, useState } from "react";
 import type { AiMode } from "@/lib/ai";
 import { apiFetch, errorMessage } from "@/lib/api-client";
 import { canStyle, MAX_LOOKS } from "@/lib/outfits";
-import { MAX_OCCASION_LENGTH, OCCASION_SUGGESTIONS, type Look, type WardrobeItem } from "@/lib/wardrobe";
+import {
+  MAX_OCCASION_LENGTH,
+  OCCASION_SUGGESTIONS,
+  type Collection,
+  type Look,
+  type WardrobeItem,
+} from "@/lib/wardrobe";
 import { AiNotice, ErrorNote, LookPieces, lookNumber, PageHeading } from "./ui";
 
 export function StylistView({
   items,
+  collections,
+  initialCollectionId,
   initialLooks,
   aiMode,
 }: {
   items: WardrobeItem[];
+  collections: Collection[];
+  initialCollectionId: string | null;
   initialLooks: Look[];
   aiMode: AiMode;
 }) {
   const [looks, setLooks] = useState(initialLooks);
   const [occasion, setOccasion] = useState(initialLooks[0]?.occasion ?? "");
+  const [collectionId, setCollectionId] = useState(initialCollectionId ?? "");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const itemsById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
-  const ready = canStyle(items);
+  const collection = collections.find((c) => c.id === collectionId) ?? null;
+  const pool = useMemo(
+    () => (collection ? collection.itemIds.flatMap((id) => itemsById.get(id) ?? []) : items),
+    [collection, items, itemsById],
+  );
+  const ready = canStyle(pool);
 
   async function styleMe() {
     setPending(true);
@@ -31,7 +47,7 @@ export function StylistView({
       const data = await apiFetch<{ looks: Look[] }>("/api/stylist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ occasion: occasion.trim() }),
+        body: JSON.stringify({ occasion: occasion.trim(), collectionId: collection?.id ?? null }),
       });
       setLooks(data.looks);
     } catch (err) {
@@ -49,6 +65,28 @@ export function StylistView({
         intro="Three looks, styled from what already hangs in your wardrobe - with a line on why each one works."
       />
       <AiNotice mode={aiMode} />
+
+      {collections.length > 0 && (
+        <div className="mt-8">
+          <label htmlFor="collection" className="eyebrow">
+            Draw from
+          </label>
+          <select
+            id="collection"
+            value={collectionId}
+            onChange={(event) => setCollectionId(event.target.value)}
+            disabled={pending}
+            className="field mt-1"
+          >
+            <option value="">Whole wardrobe</option>
+            {collections.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({c.itemIds.length})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="mt-8">
         <label htmlFor="occasion" className="eyebrow">
@@ -83,15 +121,24 @@ export function StylistView({
         {pending ? "Styling your wardrobe…" : looks.length > 0 ? "Style me again" : "Style me"}
       </button>
 
-      {!ready && (
-        <p className="mt-3 text-center text-sm text-muted">
-          Add at least a top and a bottom, or a dress, to your{" "}
-          <Link href="/wardrobe" className="text-ink underline underline-offset-4">
-            wardrobe
-          </Link>{" "}
-          first.
-        </p>
-      )}
+      {!ready &&
+        (collection ? (
+          <p className="mt-3 text-center text-sm text-muted">
+            &ldquo;{collection.name}&rdquo; needs at least a top and a bottom, or a dress.{" "}
+            <Link href={`/collections/${collection.id}`} className="text-ink underline underline-offset-4">
+              Add pieces to it
+            </Link>{" "}
+            or style from your whole wardrobe.
+          </p>
+        ) : (
+          <p className="mt-3 text-center text-sm text-muted">
+            Add at least a top and a bottom, or a dress, to your{" "}
+            <Link href="/wardrobe" className="text-ink underline underline-offset-4">
+              wardrobe
+            </Link>{" "}
+            first.
+          </p>
+        ))}
 
       {error && <ErrorNote>{error}</ErrorNote>}
 
@@ -117,9 +164,11 @@ export function StylistView({
         )
       ) : (
         <div className="mt-10 space-y-12">
-          {looks[0]?.occasion && (
+          {(looks[0]?.occasion || looks[0]?.collection) && (
             <p className="eyebrow">
-              {looks.length} {looks.length === 1 ? "look" : "looks"} for: {looks[0].occasion}
+              {looks.length} {looks.length === 1 ? "look" : "looks"}
+              {looks[0].occasion && ` for: ${looks[0].occasion}`}
+              {looks[0].collection && ` · from ${looks[0].collection}`}
             </p>
           )}
           {looks.map((look, index) => (

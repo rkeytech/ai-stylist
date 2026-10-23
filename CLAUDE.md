@@ -6,8 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Atelier — a personal AI stylist app, a plain Next.js codebase running entirely on the local machine: SQLite,
 private on-disk file storage, and OpenRouter for AI.
-Two features behind auth right now: **Wardrobe** (upload + auto-tag clothing photos), **Stylist** ("Style me" →
-up to 3 AI-generated outfit looks). **Try-On** (live camera capture + AI image generation wearing a chosen look)
+Three features behind auth right now: **Wardrobe** (upload + auto-tag clothing photos), **Collections** (named
+sets of wardrobe items, e.g. "Work"), **Stylist** ("Style me" → up to 3 AI-generated outfit looks, optionally for
+an occasion and/or drawn from one collection). **Try-On** (live camera capture + AI image generation wearing a chosen look)
 is temporarily disabled — see "Try-On is disabled" below.
 
 ## Commands
@@ -59,6 +60,7 @@ src/lib/ai.ts              OpenRouter calls: auto-tagging, the stylist, plus moc
 src/lib/outfits.ts         Outfit validity rules + sanitizing untrusted model JSON into safe LookDraft[]
 src/lib/wardrobe.ts        Category enum, keyword-based category/colour guessing, shared text-cleaning helpers
 src/lib/item-images.ts     Loads stored photos off disk for AI calls, skipping any that are missing
+src/lib/collections.ts     Shared collection-route helpers (name validation incl. per-user uniqueness -> 409)
 ```
 
 Every route handler follows the same shape: wrap in `handle()`, call `assertSameOrigin()` for state-changing
@@ -77,9 +79,11 @@ errors, throw one of these two types instead and let `handle()` do it.
   different providers. `OPENROUTER_VISION_MODELS` is a comma-separated, ordered list (see `visionModels()`
   in `ai.ts`) — put free models first and any paid fallbacks after, cheapest first; a later model is only
   ever called if every one before it fails (busy, rate-limited, out of credits, or unavailable).
-- `POST /api/stylist` accepts an optional JSON body `{ occasion?: string }` (empty body is fine). The occasion is
-  user-typed text, so `suggestLooks()` embeds it JSON-quoted in the prompt as data, and it is saved on the
-  `looks.occasion` column so the UI can label the batch.
+- `POST /api/stylist` accepts an optional JSON body `{ occasion?: string, collectionId?: string }` (empty body is
+  fine). The occasion is user-typed text, so `suggestLooks()` embeds it JSON-quoted in the prompt as data, and it
+  is saved on the `looks.occasion` column so the UI can label the batch. `collectionId` only narrows which items
+  are passed in (404 if it isn't the user's collection) and is never sent to the model; the collection's name is
+  snapshotted into `looks.collection_name` (like `tryons.look_title`) so the label survives a rename/delete.
 - No retries here: an overloaded/rate-limited/out-of-credits model can be slow to answer with an error, so
   `withModelFallback()` moves to the fallback model instead of waiting on the same one again. Preserve this
   pattern when adding new OpenRouter calls.

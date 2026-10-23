@@ -77,6 +77,9 @@ errors, throw one of these two types instead and let `handle()` do it.
   different providers. `OPENROUTER_VISION_MODELS` is a comma-separated, ordered list (see `visionModels()`
   in `ai.ts`) — put free models first and any paid fallbacks after, cheapest first; a later model is only
   ever called if every one before it fails (busy, rate-limited, out of credits, or unavailable).
+- `POST /api/stylist` accepts an optional JSON body `{ occasion?: string }` (empty body is fine). The occasion is
+  user-typed text, so `suggestLooks()` embeds it JSON-quoted in the prompt as data, and it is saved on the
+  `looks.occasion` column so the UI can label the batch.
 - No retries here: an overloaded/rate-limited/out-of-credits model can be slow to answer with an error, so
   `withModelFallback()` moves to the fallback model instead of waiting on the same one again. Preserve this
   pattern when adding new OpenRouter calls.

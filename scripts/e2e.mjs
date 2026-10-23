@@ -157,7 +157,7 @@ check("stylist needs a top+bottom or a dress", (await bob.call("/api/stylist", {
 // --- stylist ---
 const styled = await alice.call("/api/stylist", { method: "POST" });
 const byId = new Map(list.data.items.map((item) => [item.id, item]));
-const looks = styled.data.looks ?? [];
+let looks = styled.data.looks ?? [];
 check("stylist returns 3 looks", styled.status === 200 && looks.length === 3, styled.data);
 check(
   "mock stylist accessorizes looks when accessories are available",
@@ -175,6 +175,16 @@ for (const look of looks) {
       (count("dress") === 0 && count("top") === 1 && count("bottom") === 1));
   check(`look "${look.title}" follows the outfit rules and has a reason`, valid && look.reason.length > 10, categories);
 }
+const occasionRun = await alice.call("/api/stylist", { method: "POST", json: { occasion: "  Dinner   out " } });
+check(
+  "stylist accepts an occasion and labels the looks with it",
+  occasionRun.status === 200 && occasionRun.data.looks?.length > 0 && occasionRun.data.looks.every((look) => look.occasion === "Dinner out"),
+  occasionRun.data,
+);
+check("a malformed stylist body is rejected", (await alice.call("/api/stylist", { method: "POST", form: new FormData() })).status === 400);
+const bareRun = await alice.call("/api/stylist", { method: "POST" });
+looks = bareRun.data.looks ?? []; // each run replaces the saved looks, so later steps need the newest ids
+check("a bare stylist request clears the occasion", looks.length > 0 && looks.every((look) => look.occasion === null));
 check("looks persist for the Try-On page", (await alice.call("/api/stylist")).data.looks?.length === 3);
 check("another user can't try on someone else's look", (await bob.call("/api/try-on", { method: "POST", form: (() => { const f = new FormData(); f.append("lookId", looks[0].id); f.append("photo", new Blob([topBytes]), "p.png"); return f; })() })).status === 400);
 

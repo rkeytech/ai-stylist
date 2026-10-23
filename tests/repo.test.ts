@@ -21,6 +21,7 @@ import {
   listTryOns,
   markTryOnSaved,
   replaceLooks,
+  toLook,
   updateItem,
 } from "@/lib/repo";
 
@@ -139,5 +140,16 @@ describe("looks", () => {
 
     deleteItem(user.id, "top-a");
     expect(listLooks(user.id).map((look) => look.title)).toEqual(["Dress"]);
+  });
+
+  it("stores the occasion a batch was styled for, and null when none was given", () => {
+    const user = createUser("occasion@example.com", "hash");
+    addItem(user.id, "dress-b", "dress");
+
+    replaceLooks(user.id, [{ title: "Dinner look", reason: "r", itemIds: ["dress-b"] }], "Dinner");
+    expect(toLook(listLooks(user.id)[0]).occasion).toBe("Dinner");
+
+    replaceLooks(user.id, [{ title: "Any look", reason: "r", itemIds: ["dress-b"] }]);
+    expect(toLook(listLooks(user.id)[0]).occasion).toBeNull();
   });
 });

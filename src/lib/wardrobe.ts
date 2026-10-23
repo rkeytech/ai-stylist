@@ -38,8 +38,15 @@ export interface Look {
   title: string;
   reason: string;
   itemIds: string[];
+  /** What the batch was styled for ("Dinner", "Work"...), or null for a general "Style me". */
+  occasion: string | null;
   createdAt: number;
 }
+
+export const MAX_OCCASION_LENGTH = 80;
+
+/** Quick picks shown as chips on the Stylist page; free text is accepted too. */
+export const OCCASION_SUGGESTIONS = ["Casual", "Work", "Formal", "Dinner", "Coffee", "Night out", "Rainy day"] as const;
 
 export interface TryOnResult {
   id: string;

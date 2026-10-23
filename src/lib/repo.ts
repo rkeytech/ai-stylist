@@ -46,6 +46,7 @@ export interface LookRow {
   title: string;
   reason: string;
   item_ids: string;
+  occasion: string | null;
   created_at: number;
 }
 
@@ -156,7 +157,7 @@ export function addColour(name: string): void {
 // ---- stylist looks ----------------------------------------------------------
 
 /** The stylist keeps the latest set of looks per user; a new "Style me" replaces it. */
-export function replaceLooks(userId: string, drafts: LookDraft[]): LookRow[] {
+export function replaceLooks(userId: string, drafts: LookDraft[], occasion: string | null = null): LookRow[] {
   return transaction(() => {
     run("DELETE FROM looks WHERE user_id = ?", userId);
     const now = Date.now();
@@ -168,12 +169,13 @@ export function replaceLooks(userId: string, drafts: LookDraft[]): LookRow[] {
         title: draft.title,
         reason: draft.reason,
         item_ids: JSON.stringify(draft.itemIds),
+        occasion,
         created_at: now,
       };
       run(
-        `INSERT INTO looks (id, user_id, position, title, reason, item_ids, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        row.id, row.user_id, row.position, row.title, row.reason, row.item_ids, row.created_at,
+        `INSERT INTO looks (id, user_id, position, title, reason, item_ids, occasion, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        row.id, row.user_id, row.position, row.title, row.reason, row.item_ids, row.occasion, row.created_at,
       );
       return row;
     });
@@ -240,6 +242,7 @@ export function toLook(row: LookRow): Look {
     title: row.title,
     reason: row.reason,
     itemIds: JSON.parse(row.item_ids) as string[],
+    occasion: row.occasion,
     createdAt: row.created_at,
   };
 }

@@ -42,12 +42,12 @@ Status markers used below: `[x]` done and shipped, `[~]` in progress, `[ ]` not 
 - [x] Dark mode / semantic theming tokens (`globals.css`, `ThemeToggle.tsx`)
 - [x] Upload hardening — magic-byte MIME sniffing, 10MB cap, client-side re-encode to strip EXIF/GPS
 - [x] Per-user data isolation — every `repo.ts` query scoped by `user_id`; verified by `npm run test:e2e`'s privacy checks
+- [x] Occasion-based styling — `POST /api/stylist` takes an optional JSON `{ occasion }` (free text, capped at 80 chars; no body = general styling). Passed to the model as quoted data in `suggestLooks(items, { occasion })`, stored in the nullable `looks.occasion` column (added by `migrateLookOccasion()` in `db.ts`), shown as chips + a text field on the Stylist page and labelled above the results. Mock mode ignores it. Later `collectionId` / `anchorItemId` should join this same body.
+- [x] Rebrand: "Styled" → "Atelier" — README, page titles/nav, `AuthForm.tsx` copy, OpenRouter `X-Title`; landed in the "changed to openrouter" commits (verified 2026-10-23: clean tree, typecheck + unit tests pass)
 
 ## In progress
 
-- [~] Rebrand: "Styled" → "Atelier" — README, page titles/nav, icon, theme colors, `AuthForm.tsx` copy; small
-      unrelated one-line tweak in `src/lib/ai.ts` also pending in this change set. (Uncommitted as of 2026-09-15;
-      not yet in a commit — check `git status`/`git diff` for current state before assuming this is finished.)
+*(nothing in progress)*
 
 ## Paused / disabled
 
@@ -73,15 +73,6 @@ Status markers used below: `[x]` done and shipped, `[~]` in progress, `[ ]` not 
     `/api/collections/[id]/items` (PUT to set membership).
   - New UI: a "Collections" nav tab, a list/create page, and a detail page to rename/delete a collection and
     check which uploaded items belong to it.
-- [ ] **Occasion-based styling** — let "Style me" take a free-text (or quick-pick chip: formal, casual, dinner,
-      coffee, clubbing, rainy weather, …) occasion and bias the AI's outfit choices accordingly. Design sketch:
-  - Extend `POST /api/stylist`'s body (currently no body at all) with an optional `occasion` string, threaded
-    into a new `suggestLooks(items, { occasion })` prompt addition in `ai.ts`. Mock mode can mostly ignore it.
-  - Combine naturally with Collections above: an optional `collectionId` in the same request scopes which items
-    the stylist draws from (falls back to the whole wardrobe when omitted) — one unified endpoint rather than
-    three separate ones.
-  - Store `occasion` on the `looks` row (nullable column, simple `ALTER TABLE ADD COLUMN` migration — no CHECK
-    constraint involved, unlike the `items.category` migration) so the UI can label "3 looks for: Dinner".
 - [ ] **Style around one item** — let the user pick a single wardrobe item and ask for 3 looks that all include
       it. Design sketch:
   - Same unified `POST /api/stylist` body gets an optional `anchorItemId`. `sanitizeLooks`/`mockLooks` in

@@ -107,6 +107,12 @@ function migrateAccessoriesCategory(db: DatabaseSync): void {
   }
 }
 
+/** Looks gained a nullable `occasion` column after the first release; plain ADD COLUMN is enough (no CHECK). */
+function migrateLookOccasion(db: DatabaseSync): void {
+  const columns = db.prepare("PRAGMA table_info(looks)").all() as { name: string }[];
+  if (!columns.some((column) => column.name === "occasion")) db.exec("ALTER TABLE looks ADD COLUMN occasion TEXT");
+}
+
 function seedColours(db: DatabaseSync): void {
   const insert = db.prepare("INSERT OR IGNORE INTO colours (name) VALUES (?)");
   const seen = new Set<string>();
@@ -126,6 +132,7 @@ export function getDb(): DatabaseSync {
     db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
     db.exec(SCHEMA);
     migrateAccessoriesCategory(db);
+    migrateLookOccasion(db);
     seedColours(db);
     globalThis.__styledDb = db;
   }

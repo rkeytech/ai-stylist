@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { canStyle, checkOutfit, mockLooks, sanitizeLooks, type StylableItem } from "@/lib/outfits";
+import {
+  canStyle,
+  canStyleAround,
+  checkOutfit,
+  missingAround,
+  mockLooks,
+  sanitizeLooks,
+  type StylableItem,
+} from "@/lib/outfits";
 
 const items: StylableItem[] = [
   { id: "t1", name: "Blue shirt", category: "top", colour: "blue" },
@@ -107,5 +115,59 @@ describe("mockLooks and canStyle", () => {
     expect(canStyle([{ category: "top" }, { category: "bottom" }])).toBe(true);
     expect(canStyle([{ category: "dress" }])).toBe(true);
     expect(mockLooks(items.filter((item) => item.category === "top"))).toEqual([]);
+  });
+});
+
+describe("styling around one item", () => {
+  const anchored = (anchorId: string) => {
+    const looks = mockLooks(items, { anchorId });
+    for (const look of looks) {
+      expect(checkOutfit(look.itemIds, byId)).toBeNull();
+      expect(look.itemIds).toContain(anchorId);
+    }
+    return looks;
+  };
+
+  it("knows when a piece can anchor an outfit", () => {
+    expect(canStyleAround([{ category: "top" }, { category: "bottom" }], { category: "top" })).toBe(true);
+    expect(canStyleAround([{ category: "top" }, { category: "dress" }], { category: "top" })).toBe(false);
+    expect(canStyleAround([{ category: "bottom" }, { category: "top" }], { category: "bottom" })).toBe(true);
+    expect(canStyleAround([{ category: "bottom" }], { category: "bottom" })).toBe(false);
+    expect(canStyleAround([{ category: "dress" }], { category: "dress" })).toBe(true);
+    expect(canStyleAround([{ category: "shoes" }, { category: "dress" }], { category: "shoes" })).toBe(true);
+    expect(canStyleAround([{ category: "accessories" }, { category: "top" }], { category: "accessories" })).toBe(false);
+    expect(missingAround({ category: "top" })).toBe("a bottom");
+    expect(missingAround({ category: "outerwear" })).toMatch(/dress/);
+  });
+
+  it("drops model looks that leave the anchor out", () => {
+    const raw = {
+      looks: [
+        { title: "With it", reason: "r", itemIds: ["t1", "b1", "s1"] },
+        { title: "Without it", reason: "r", itemIds: ["d1"] },
+        { title: "Also with it", reason: "r", itemIds: ["t1", "b1"] },
+      ],
+    };
+    expect(sanitizeLooks(raw, items, { anchorId: "t1" }).map((look) => look.title)).toEqual(["With it", "Also with it"]);
+    expect(sanitizeLooks(raw, items)).toHaveLength(3);
+  });
+
+  it("only uses combinations containing a top, bottom or dress anchor", () => {
+    expect(anchored("t1")).toHaveLength(1); // one bottom to pair it with
+    expect(anchored("b1")).toHaveLength(2); // either top
+    expect(anchored("d1")).toHaveLength(1);
+  });
+
+  it("puts a shoes or outerwear anchor into every look", () => {
+    expect(anchored("s2")).toHaveLength(3);
+    for (const look of anchored("s2")) expect(look.itemIds).not.toContain("s1");
+    expect(anchored("o1")).toHaveLength(3);
+  });
+
+  it("adds an accessory anchor once, instead of the round-robin accessory", () => {
+    for (const look of anchored("a2")) {
+      expect(look.itemIds.filter((id) => id === "a2")).toHaveLength(1);
+      expect(look.itemIds).not.toContain("a1");
+    }
   });
 });

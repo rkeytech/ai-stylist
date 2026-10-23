@@ -48,6 +48,7 @@ export interface LookRow {
   item_ids: string;
   occasion: string | null;
   collection_name: string | null;
+  anchor_item_id: string | null;
   created_at: number;
 }
 
@@ -259,15 +260,19 @@ export function listCollectionItems(userId: string, collectionId: string): ItemR
 
 // ---- stylist looks ----------------------------------------------------------
 
-/**
- * The stylist keeps the latest set of looks per user; a new "Style me" replaces it. `occasion` and
- * `collectionName` record what produced the batch so the UI can label it.
- */
+/** What produced a batch of looks, so the UI can label it. */
+export interface LookBatch {
+  occasion?: string | null;
+  collectionName?: string | null;
+  /** The piece every look was built around. Deleting it deletes the looks too, so this never dangles. */
+  anchorItemId?: string | null;
+}
+
+/** The stylist keeps the latest set of looks per user; a new "Style me" replaces it. */
 export function replaceLooks(
   userId: string,
   drafts: LookDraft[],
-  occasion: string | null = null,
-  collectionName: string | null = null,
+  { occasion = null, collectionName = null, anchorItemId = null }: LookBatch = {},
 ): LookRow[] {
   return transaction(() => {
     run("DELETE FROM looks WHERE user_id = ?", userId);
@@ -282,13 +287,15 @@ export function replaceLooks(
         item_ids: JSON.stringify(draft.itemIds),
         occasion,
         collection_name: collectionName,
+        anchor_item_id: anchorItemId,
         created_at: now,
       };
       run(
-        `INSERT INTO looks (id, user_id, position, title, reason, item_ids, occasion, collection_name, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO looks
+           (id, user_id, position, title, reason, item_ids, occasion, collection_name, anchor_item_id, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         row.id, row.user_id, row.position, row.title, row.reason, row.item_ids, row.occasion, row.collection_name,
-        row.created_at,
+        row.anchor_item_id, row.created_at,
       );
       return row;
     });
@@ -357,6 +364,7 @@ export function toLook(row: LookRow): Look {
     itemIds: JSON.parse(row.item_ids) as string[],
     occasion: row.occasion,
     collection: row.collection_name,
+    anchorItemId: row.anchor_item_id,
     createdAt: row.created_at,
   };
 }

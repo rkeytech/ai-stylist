@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   useCallback,
   useEffect,
@@ -175,6 +176,9 @@ export function WardrobeView({
                   <button type="button" className="btn-link" onClick={() => setConfirmingId(item.id)}>
                     Remove
                   </button>
+                  <Link href={`/stylist?anchor=${item.id}`} className="btn-link">
+                    Style around this
+                  </Link>
                 </div>
               )}
             </li>

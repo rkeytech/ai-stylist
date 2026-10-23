@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { AiMode } from "@/lib/ai";
 import { apiFetch, errorMessage } from "@/lib/api-client";
-import { canStyle, MAX_LOOKS } from "@/lib/outfits";
+import { canStyle, canStyleAround, MAX_LOOKS, missingAround } from "@/lib/outfits";
 import {
+  describePiece,
   MAX_OCCASION_LENGTH,
   OCCASION_SUGGESTIONS,
   type Collection,
@@ -18,27 +19,34 @@ export function StylistView({
   items,
   collections,
   initialCollectionId,
+  initialAnchorId,
   initialLooks,
   aiMode,
 }: {
   items: WardrobeItem[];
   collections: Collection[];
   initialCollectionId: string | null;
+  initialAnchorId: string | null;
   initialLooks: Look[];
   aiMode: AiMode;
 }) {
   const [looks, setLooks] = useState(initialLooks);
   const [occasion, setOccasion] = useState(initialLooks[0]?.occasion ?? "");
   const [collectionId, setCollectionId] = useState(initialCollectionId ?? "");
+  // Like the occasion, an anchored batch keeps its anchor selected for "Style me again".
+  const [anchorId, setAnchorId] = useState(initialAnchorId ?? initialLooks[0]?.anchorItemId ?? null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const itemsById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
   const collection = collections.find((c) => c.id === collectionId) ?? null;
-  const pool = useMemo(
-    () => (collection ? collection.itemIds.flatMap((id) => itemsById.get(id) ?? []) : items),
-    [collection, items, itemsById],
-  );
-  const ready = canStyle(pool);
+  const anchor = (anchorId && itemsById.get(anchorId)) || null;
+  // Mirrors the route: the anchor joins the pool even when it isn't in the chosen collection.
+  const pool = useMemo(() => {
+    const base = collection ? collection.itemIds.flatMap((id) => itemsById.get(id) ?? []) : items;
+    return anchor && !base.includes(anchor) ? [anchor, ...base] : base;
+  }, [anchor, collection, items, itemsById]);
+  const ready = anchor ? canStyleAround(pool, anchor) : canStyle(pool);
+  const batchAnchor = (looks[0]?.anchorItemId && itemsById.get(looks[0].anchorItemId)) || null;
 
   async function styleMe() {
     setPending(true);
@@ -47,7 +55,11 @@ export function StylistView({
       const data = await apiFetch<{ looks: Look[] }>("/api/stylist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ occasion: occasion.trim(), collectionId: collection?.id ?? null }),
+        body: JSON.stringify({
+          occasion: occasion.trim(),
+          collectionId: collection?.id ?? null,
+          anchorItemId: anchor?.id ?? null,
+        }),
       });
       setLooks(data.looks);
     } catch (err) {
@@ -65,6 +77,20 @@ export function StylistView({
         intro="Three looks, styled from what already hangs in your wardrobe - with a line on why each one works."
       />
       <AiNotice mode={aiMode} />
+
+      {anchor && (
+        <div className="mt-8 flex items-center gap-4 border border-line bg-card p-3">
+          {/* eslint-disable-next-line @next/next/no-img-element -- private, auth-gated images */}
+          <img src={anchor.imageUrl} alt={describePiece(anchor)} className="aspect-square w-16 object-cover" />
+          <div className="min-w-0 flex-1">
+            <p className="eyebrow">Styling around</p>
+            <p className="display mt-1 truncate text-2xl">{anchor.name}</p>
+          </div>
+          <button type="button" className="btn-link" onClick={() => setAnchorId(null)} disabled={pending}>
+            Clear
+          </button>
+        </div>
+      )}
 
       {collections.length > 0 && (
         <div className="mt-8">
@@ -122,7 +148,18 @@ export function StylistView({
       </button>
 
       {!ready &&
-        (collection ? (
+        (anchor ? (
+          <p className="mt-3 text-center text-sm text-muted">
+            {collection ? <>&ldquo;{collection.name}&rdquo; needs</> : "Your wardrobe needs"} {missingAround(anchor)}{" "}
+            to go with your {describePiece(anchor).toLowerCase()}.{" "}
+            <Link
+              href={collection ? `/collections/${collection.id}` : "/wardrobe"}
+              className="text-ink underline underline-offset-4"
+            >
+              Add pieces
+            </Link>
+          </p>
+        ) : collection ? (
           <p className="mt-3 text-center text-sm text-muted">
             &ldquo;{collection.name}&rdquo; needs at least a top and a bottom, or a dress.{" "}
             <Link href={`/collections/${collection.id}`} className="text-ink underline underline-offset-4">
@@ -164,9 +201,10 @@ export function StylistView({
         )
       ) : (
         <div className="mt-10 space-y-12">
-          {(looks[0]?.occasion || looks[0]?.collection) && (
+          {(looks[0]?.occasion || looks[0]?.collection || batchAnchor) && (
             <p className="eyebrow">
               {looks.length} {looks.length === 1 ? "look" : "looks"}
+              {batchAnchor && ` around the ${describePiece(batchAnchor).toLowerCase()}`}
               {looks[0].occasion && ` for: ${looks[0].occasion}`}
               {looks[0].collection && ` · from ${looks[0].collection}`}
             </p>
@@ -176,7 +214,7 @@ export function StylistView({
               <p className="eyebrow">Look {lookNumber(index)}</p>
               <h2 className="display mt-1 text-4xl">{look.title}</h2>
               <div className="mt-5">
-                <LookPieces itemIds={look.itemIds} itemsById={itemsById} />
+                <LookPieces itemIds={look.itemIds} itemsById={itemsById} highlightId={look.anchorItemId} />
               </div>
               <p className="mt-5 max-w-2xl leading-relaxed">{look.reason}</p>
             </article>

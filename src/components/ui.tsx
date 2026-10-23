@@ -57,10 +57,13 @@ export function LookPieces({
   itemIds,
   itemsById,
   size = "md",
+  highlightId = null,
 }: {
   itemIds: string[];
   itemsById: Map<string, WardrobeItem>;
   size?: "sm" | "md";
+  /** A piece to mark out, e.g. the one a batch was styled around. */
+  highlightId?: string | null;
 }) {
   const width = size === "sm" ? "w-16" : "w-28 sm:w-36";
   return (
@@ -75,9 +78,13 @@ export function LookPieces({
               src={item.imageUrl}
               alt={describePiece(item)}
               loading="lazy"
-              className="aspect-square w-full bg-card object-cover"
+              className={`aspect-square w-full bg-card object-cover ${id === highlightId ? "ring-2 ring-accent ring-offset-2 ring-offset-paper" : ""}`}
             />
-            {size === "md" && <figcaption className="mt-1 truncate text-xs text-muted">{item.name}</figcaption>}
+            {size === "md" && (
+              <figcaption className={`mt-1 truncate text-xs ${id === highlightId ? "text-accent" : "text-muted"}`}>
+                {item.name}
+              </figcaption>
+            )}
           </figure>
         );
       })}

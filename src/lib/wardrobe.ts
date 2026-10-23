@@ -42,6 +42,8 @@ export interface Look {
   occasion: string | null;
   /** Name of the collection the batch was drawn from, or null for the whole wardrobe. */
   collection: string | null;
+  /** The piece every look in the batch was styled around, or null. */
+  anchorItemId: string | null;
   createdAt: number;
 }
 

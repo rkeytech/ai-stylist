@@ -142,6 +142,14 @@ function migrateLookCollection(db: DatabaseSync): void {
   }
 }
 
+/** Looks styled around one piece remember its id (no FK: deleteItem() already drops looks containing it). */
+function migrateLookAnchor(db: DatabaseSync): void {
+  const columns = db.prepare("PRAGMA table_info(looks)").all() as { name: string }[];
+  if (!columns.some((column) => column.name === "anchor_item_id")) {
+    db.exec("ALTER TABLE looks ADD COLUMN anchor_item_id TEXT");
+  }
+}
+
 function seedColours(db: DatabaseSync): void {
   const insert = db.prepare("INSERT OR IGNORE INTO colours (name) VALUES (?)");
   const seen = new Set<string>();
@@ -163,6 +171,7 @@ export function getDb(): DatabaseSync {
     migrateAccessoriesCategory(db);
     migrateLookOccasion(db);
     migrateLookCollection(db);
+    migrateLookAnchor(db);
     seedColours(db);
     globalThis.__styledDb = db;
   }

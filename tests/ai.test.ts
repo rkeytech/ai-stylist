@@ -139,6 +139,10 @@ describe("mock mode", () => {
     expect(looks).toHaveLength(2);
     for (const look of looks) expect(checkOutfit(look.itemIds, byId)).toBeNull();
 
+    const around = await suggestLooks(items, { anchorId: "t" });
+    expect(around.length).toBeGreaterThan(0);
+    for (const look of around) expect(look.itemIds).toContain("t");
+
     const result = await generateTryOn(image, items.slice(0, 2), "4:3");
     expect(result.mimeType).toBe("image/png");
     expect(Buffer.compare(result.data, Buffer.from(png))).toBe(0);

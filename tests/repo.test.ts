@@ -154,7 +154,7 @@ describe("looks", () => {
     const user = createUser("occasion@example.com", "hash");
     addItem(user.id, "dress-b", "dress");
 
-    replaceLooks(user.id, [{ title: "Dinner look", reason: "r", itemIds: ["dress-b"] }], "Dinner");
+    replaceLooks(user.id, [{ title: "Dinner look", reason: "r", itemIds: ["dress-b"] }], { occasion: "Dinner" });
     expect(toLook(listLooks(user.id)[0]).occasion).toBe("Dinner");
 
     replaceLooks(user.id, [{ title: "Any look", reason: "r", itemIds: ["dress-b"] }]);
@@ -165,8 +165,25 @@ describe("looks", () => {
     const user = createUser("looks-collection@example.com", "hash");
     addItem(user.id, "dress-c", "dress");
 
-    replaceLooks(user.id, [{ title: "Work look", reason: "r", itemIds: ["dress-c"] }], "Work", "Office");
-    expect(toLook(listLooks(user.id)[0])).toMatchObject({ occasion: "Work", collection: "Office" });
+    replaceLooks(user.id, [{ title: "Work look", reason: "r", itemIds: ["dress-c"] }], {
+      occasion: "Work",
+      collectionName: "Office",
+    });
+    expect(toLook(listLooks(user.id)[0])).toMatchObject({ occasion: "Work", collection: "Office", anchorItemId: null });
+  });
+
+  it("records the piece a batch was styled around, and drops the batch with it", () => {
+    const user = createUser("looks-anchor@example.com", "hash");
+    addItem(user.id, "top-d", "top");
+    addItem(user.id, "bottom-d", "bottom");
+
+    replaceLooks(user.id, [{ title: "Around the top", reason: "r", itemIds: ["top-d", "bottom-d"] }], {
+      anchorItemId: "top-d",
+    });
+    expect(toLook(listLooks(user.id)[0]).anchorItemId).toBe("top-d");
+
+    deleteItem(user.id, "top-d");
+    expect(listLooks(user.id)).toEqual([]);
   });
 });
 

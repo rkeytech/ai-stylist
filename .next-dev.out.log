@@ -1,0 +1,43 @@
+
+> atelier-ai-stylist@1.0.0 dev
+> next dev
+
+▲ Next.js 16.3.5 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.122:3000
+- Environments: .env.local
+✓ Ready in 448ms
+✓ Running next.config.ts took 54ms
+
+ GET /login 200 in 510ms (next.js: 358ms, application-code: 151ms)
+ GET /wardrobe 200 in 161ms (next.js: 42ms, application-code: 119ms)
+ GET /wardrobe 200 in 137ms (next.js: 66ms, application-code: 71ms)
+ GET /wardrobe 200 in 43ms (next.js: 4ms, application-code: 39ms)
+ GET /wardrobe 200 in 22ms (next.js: 3ms, application-code: 19ms)
+ GET /wardrobe 200 in 32ms (next.js: 8ms, application-code: 24ms)
+ GET /wardrobe 200 in 21ms (next.js: 3ms, application-code: 18ms)
+ GET /wardrobe 200 in 110ms (next.js: 61ms, application-code: 48ms)
+ GET /wardrobe 200 in 26ms (next.js: 3ms, application-code: 22ms)
+ GET /wardrobe 200 in 171ms (next.js: 137ms, application-code: 34ms)
+ GET /wardrobe 200 in 22ms (next.js: 3ms, application-code: 18ms)
+ GET /wardrobe 200 in 26ms (next.js: 3ms, application-code: 23ms)
+ GET /wardrobe 200 in 33ms (next.js: 8ms, application-code: 26ms)
+✓ Compiled in 61ms
+ GET /wardrobe 200 in 28ms (next.js: 4ms, application-code: 24ms)
+✓ Compiled in 71ms
+ GET /wardrobe 200 in 62ms (next.js: 37ms, application-code: 25ms)
+ GET /wardrobe 200 in 42ms (next.js: 21ms, application-code: 21ms)
+ GET /wardrobe 200 in 31ms (next.js: 3ms, application-code: 28ms)
+ GET /wardrobe 200 in 26ms (next.js: 3ms, application-code: 23ms)
+✓ Compiled in 70ms
+ GET /wardrobe 200 in 27ms (next.js: 3ms, application-code: 24ms)
+ GET /wardrobe 200 in 47ms (next.js: 7ms, application-code: 39ms)
+ GET /wardrobe 200 in 23ms (next.js: 2ms, application-code: 20ms)
+ GET /wardrobe 200 in 23ms (next.js: 2ms, application-code: 21ms)
+ GET /wardrobe 200 in 24ms (next.js: 2ms, application-code: 21ms)
+ GET /wardrobe 200 in 20ms (next.js: 2ms, application-code: 17ms)
+ GET /wardrobe 200 in 23ms (next.js: 5ms, application-code: 18ms)
+✓ Compiled in 63ms
+ GET /login 200 in 43ms (next.js: 5ms, application-code: 37ms)
+ GET /login 200 in 24ms (next.js: 2ms, application-code: 22ms)
+[?25h

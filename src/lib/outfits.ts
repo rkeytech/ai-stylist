@@ -26,6 +26,31 @@ export function canStyle(items: Pick<StylableItem, "category">[]): boolean {
   );
 }
 
+/** The categories an outfit is built on; everything else (shoes, outerwear, accessories) is an extra. */
+const isBaseCategory = (category: Category) => category === "top" || category === "bottom" || category === "dress";
+
+/**
+ * Whether at least one valid outfit containing `anchor` can be built from `items` (which include the
+ * anchor): a top needs a bottom, a bottom needs a top, a dress always works, and an extra just needs
+ * the pool to be stylable at all.
+ */
+export function canStyleAround(
+  items: Pick<StylableItem, "category">[],
+  anchor: Pick<StylableItem, "category">,
+): boolean {
+  if (anchor.category === "dress") return true;
+  if (anchor.category === "top") return hasCategory(items, "bottom");
+  if (anchor.category === "bottom") return hasCategory(items, "top");
+  return canStyle(items);
+}
+
+/** What a pool lacks when canStyleAround() fails, phrased for messages ("Add a bottom..."). */
+export function missingAround(anchor: Pick<StylableItem, "category">): string {
+  if (anchor.category === "top") return "a bottom";
+  if (anchor.category === "bottom") return "a top";
+  return "a top and a bottom, or a dress";
+}
+
 /**
  * Checks the outfit rules from the stylist brief:
  * (top + bottom) or (dress), plus optional shoes, outerwear and accessories,
@@ -69,11 +94,16 @@ function describeItems(itemIds: string[], byId: Map<string, StylableItem>): stri
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
+export interface LookOptions {
+  /** Styling around one piece: every look must include the item with this id. */
+  anchorId?: string | null;
+}
+
 /**
  * Turns untrusted model output into at most MAX_LOOKS valid, distinct looks.
- * Invalid outfits (unknown ids, broken rules) are dropped rather than repaired.
+ * Invalid outfits (unknown ids, broken rules, missing the anchor) are dropped rather than repaired.
  */
-export function sanitizeLooks(raw: unknown, items: StylableItem[]): LookDraft[] {
+export function sanitizeLooks(raw: unknown, items: StylableItem[], { anchorId }: LookOptions = {}): LookDraft[] {
   const byId = new Map(items.map((item) => [item.id, item]));
   const entries = Array.isArray(raw) ? raw : isRecord(raw) && Array.isArray(raw.looks) ? raw.looks : [];
 
@@ -83,6 +113,7 @@ export function sanitizeLooks(raw: unknown, items: StylableItem[]): LookDraft[] 
     if (!isRecord(entry) || !Array.isArray(entry.itemIds)) continue;
     const itemIds = entry.itemIds.filter((id): id is string => typeof id === "string");
     if (itemIds.length !== entry.itemIds.length || checkOutfit(itemIds, byId)) continue;
+    if (anchorId && !itemIds.includes(anchorId)) continue;
 
     const key = [...itemIds].sort().join("|");
     if (seen.has(key)) continue;
@@ -101,9 +132,17 @@ export function sanitizeLooks(raw: unknown, items: StylableItem[]): LookDraft[] 
 
 const MOCK_TITLES = ["Easy Weekend Edit", "City Day Uniform", "Golden Hour Ease"];
 
-/** Deterministic, rule-following suggestions used when AI_MOCK=true. */
-export function mockLooks(items: StylableItem[]): LookDraft[] {
-  const of = (category: Category) => items.filter((item) => item.category === category);
+/**
+ * Deterministic, rule-following suggestions used when AI_MOCK=true. With an anchor, a top/bottom/dress
+ * anchor keeps only the combinations containing it; a shoes/outerwear/accessory anchor replaces the
+ * round-robin pick for its category, so it lands in every look.
+ */
+export function mockLooks(items: StylableItem[], { anchorId }: LookOptions = {}): LookDraft[] {
+  const anchor = anchorId ? items.find((item) => item.id === anchorId) : undefined;
+  const of = (category: Category) =>
+    anchor?.category === category && !isBaseCategory(category)
+      ? [anchor]
+      : items.filter((item) => item.category === category);
   const [tops, bottoms, dresses, shoes, outerwear, accessories] = [
     of("top"), of("bottom"), of("dress"), of("shoes"), of("outerwear"), of("accessories"),
   ];
@@ -111,7 +150,7 @@ export function mockLooks(items: StylableItem[]): LookDraft[] {
   const bases: StylableItem[][] = [
     ...dresses.map((dress) => [dress]),
     ...tops.flatMap((top) => bottoms.map((bottom) => [top, bottom])),
-  ];
+  ].filter((base) => !anchor || !isBaseCategory(anchor.category) || base.includes(anchor));
 
   const byId = new Map(items.map((item) => [item.id, item]));
   const usage = new Map<string, number>();

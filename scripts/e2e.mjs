@@ -225,9 +225,46 @@ check("collection names are only unique per user", bobCollection.status === 201,
 check("another user can't add someone else's item to a collection", (await bob.call(`/api/collections/${bobCollection.data.collection.id}/items`, { method: "PUT", json: { itemIds: [items.top.id] } })).status === 400);
 check("another user's collection page is a 404", (await bob.call(`/collections/${work.data.collection.id}`)).status === 404);
 
+// --- style around an item ---
+const aroundTop = await alice.call("/api/stylist", { method: "POST", json: { anchorItemId: items.top.id } });
+check(
+  "stylist builds every look around the chosen piece",
+  aroundTop.status === 200 &&
+    aroundTop.data.looks?.length > 0 &&
+    aroundTop.data.looks.every((look) => look.itemIds.includes(items.top.id) && look.anchorItemId === items.top.id),
+  aroundTop.data,
+);
+const aroundShoes = await alice.call("/api/stylist", { method: "POST", json: { anchorItemId: items.shoes.id, occasion: "Dinner" } });
+check(
+  "an extra (shoes) can anchor every look too",
+  aroundShoes.status === 200 &&
+    aroundShoes.data.looks?.length > 0 &&
+    aroundShoes.data.looks.every((look) => look.itemIds.includes(items.shoes.id) && look.occasion === "Dinner"),
+  aroundShoes.data,
+);
+const aroundInCollection = await alice.call("/api/stylist", {
+  method: "POST",
+  json: { anchorItemId: items.outerwear.id, collectionId: work.data.collection.id },
+});
+check(
+  "an anchor outside the collection joins it for that run",
+  aroundInCollection.status === 200 &&
+    aroundInCollection.data.looks?.length > 0 &&
+    aroundInCollection.data.looks.every(
+      (look) =>
+        look.collection === "Office" &&
+        look.itemIds.includes(items.outerwear.id) &&
+        look.itemIds.every((id) => id === items.outerwear.id || workIds.includes(id)),
+    ),
+  aroundInCollection.data,
+);
+check("styling around an unknown piece is a 404", (await alice.call("/api/stylist", { method: "POST", json: { anchorItemId: "missing" } })).status === 404);
+check("the anchor must be an item id", (await alice.call("/api/stylist", { method: "POST", json: { anchorItemId: 42 } })).status === 400);
+check("another user can't style around someone else's piece", (await bob.call("/api/stylist", { method: "POST", json: { anchorItemId: items.top.id } })).status === 404);
+
 const bareRun = await alice.call("/api/stylist", { method: "POST" });
 looks = bareRun.data.looks ?? []; // each run replaces the saved looks, so later steps need the newest ids
-check("a bare stylist request clears the occasion and collection", looks.length > 0 && looks.every((look) => look.occasion === null && look.collection === null));
+check("a bare stylist request clears the occasion, collection and anchor", looks.length > 0 && looks.every((look) => look.occasion === null && look.collection === null && look.anchorItemId === null));
 check("looks persist for the Try-On page", (await alice.call("/api/stylist")).data.looks?.length === 3);
 check("another user can't try on someone else's look", (await bob.call("/api/try-on", { method: "POST", form: (() => { const f = new FormData(); f.append("lookId", looks[0].id); f.append("photo", new Blob([topBytes]), "p.png"); return f; })() })).status === 400);
 
@@ -263,7 +300,7 @@ check("deleting an item drops it from its collections", afterDelete.data.collect
 check("owner can delete a saved try-on", (await alice.call(`/api/try-on/${first.data.tryOn.id}`, { method: "DELETE" })).status === 200 && (await alice.call("/api/try-on")).data.tryOns.length === 0);
 
 // --- pages & sign out ---
-for (const page of ["/wardrobe", "/collections", workUrl.replace("/api", ""), `/stylist?collection=${work.data.collection.id}`, "/stylist", "/try-on"]) {
+for (const page of ["/wardrobe", "/collections", workUrl.replace("/api", ""), `/stylist?collection=${work.data.collection.id}`, `/stylist?anchor=${items.top.id}`, "/stylist", "/try-on"]) {
   const res = await alice.call(page);
   check(`page ${page} renders for a signed-in user`, res.status === 200 && res.data.toString().includes("ATELIER"), res.status);
 }

@@ -23,7 +23,7 @@ export function SiteHeader({ email }: { email: string }) {
 
   return (
     <header className="border-b border-line">
-      <div className="mx-auto max-w-6xl px-5 sm:px-8">
+      <div className="mx-auto max-w-7xl px-5 sm:px-8">
         <div className="flex items-center justify-between border-b border-line py-3 text-[10px] tracking-[0.3em] text-muted uppercase">
           <span>Private Edition</span>
           <div className="flex items-center gap-4">
@@ -44,7 +44,7 @@ export function SiteHeader({ email }: { email: string }) {
         </div>
       </div>
       <nav aria-label="Main" className="border-t border-line">
-        <div className="mx-auto flex max-w-6xl gap-8 px-5 sm:px-8">
+        <div className="mx-auto flex max-w-7xl gap-8 px-5 sm:px-8">
           {TABS.map((tab) => {
             const active = pathname.startsWith(tab.href);
             return (

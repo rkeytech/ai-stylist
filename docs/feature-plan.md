@@ -50,6 +50,20 @@ Status markers used below: `[x]` done and shipped, `[~]` in progress, `[ ]` not 
       collections show an "Add pieces" empty state. Both actions still save the whole list via
       `PUT /api/collections/[id]/items` — no API change.
 - [x] Style around one item — "Style around this" on each wardrobe card links to `/stylist?anchor=<id>`; the Stylist page shows a "Styling around" strip (clearable) and rings the anchor in every look. `POST /api/stylist` takes `anchorItemId` (404 if not the user's, 400 if not a string, 422 via `canStyleAround()` when the pool can't dress it). Shipped differently from the sketch: the anchor joins the chosen collection's pool even if it isn't a member, and `looks.anchor_item_id` stores the id (safe — deleting an item already deletes looks containing it). The anchor is placed first in the model request so the 40-item cap never drops it. Not added: a "Style around" link on collection detail tiles (now feasible, since those tiles are plain member cards rather than tap-to-select buttons).
+- [x] Stylist tab redesign ("The Studio") — 3 static directions were mocked up (private claude.ai design canvas;
+      sources in the git-ignored `.scratch/stylist-canvas/`); the user picked B. `StylistView.tsx` is now a
+      bordered "brief" panel (i Style around, ii Draw from as a radio list of whole wardrobe + collections with
+      counts, iii Occasion) beside a grid of look cards (2×2 piece tiles with the anchor ringed and first, "+N"
+      for extras, title, reason, piece tags). On phones the brief collapses to a one-line summary after styling.
+      Empty state shows dashed Look 01–03 placeholders; loading shows skeleton cards; "can't style" messages sit
+      inside the brief (under Draw from when a collection is the problem, with a "use the whole wardrobe" action).
+      No API change. Intro text under the Stylist title was dropped. Errors still use the accent colour — the
+      mockups' rust warning colour was not added as a token. App max width widened `max-w-6xl` → `max-w-7xl`
+      (layout + header) so the three cards fit in one row beside the brief on desktop.
+- [x] Look details modal — clicking a Stylist look card (a stretched title button covers the card) opens a
+      native `<dialog>` showing the full look: title, occasion/collection/piece count, reason, and every piece
+      (photo, name, category, the anchor marked "Styled around"), with Previous/Next look buttons. Closes on ×,
+      Esc or a backdrop click. Client-only, no API change — cards still show at most 4 tiles with "+N".
 - [x] Rebrand: "Styled" → "Atelier" — README, page titles/nav, `AuthForm.tsx` copy, OpenRouter `X-Title`; landed in the "changed to openrouter" commits (verified 2026-10-23: clean tree, typecheck + unit tests pass)
 
 ## In progress
@@ -100,9 +114,6 @@ Status markers used below: `[x]` done and shipped, `[~]` in progress, `[ ]` not 
     at `wardrobe.ts:82` into outerwear); rewrite the category definitions in the AI tagging + stylist prompts
     (`ai.ts:170` and `:208` currently call bags and scarves accessories); update `mockLooks()`, `canStyle()`,
     UI category labels, the outfit-rule description in `CLAUDE.md`, and tests.
-- [ ] Stylist tab redesign mockups — produce **3 design directions** as **static mockups only** (pictures, not
-      interactive), covering the occasion/collection/anchor controls, look cards, and loading/empty states. The
-      user picks one before any Stylist page code changes.
 
 ## Ideas / needs discussion
 

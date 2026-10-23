@@ -7,7 +7,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <SiteHeader email={user.email} />
-      <main className="mx-auto max-w-6xl px-5 py-10 sm:px-8">{children}</main>
+      <main className="mx-auto max-w-7xl px-5 py-10 sm:px-8">{children}</main>
     </>
   );
 }

@@ -6,7 +6,7 @@ import { useState } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 
 const TABS = [
-  { href: "/wardrobe", label: "Wardrobe" },
+  { href: "/wardrobe", label: "Atelier" },
   { href: "/collections", label: "Collections" },
   { href: "/stylist", label: "Stylist" },
 ];
@@ -24,8 +24,7 @@ export function SiteHeader({ email }: { email: string }) {
   return (
     <header className="border-b border-line">
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
-        <div className="flex items-center justify-between border-b border-line py-3 text-[10px] tracking-[0.3em] text-muted uppercase">
-          <span>Private Edition</span>
+        <div className="flex items-center justify-end border-b border-line py-3 text-[10px] tracking-[0.3em] text-muted uppercase">
           <div className="flex items-center gap-4">
             <ThemeToggle />
             <span className="hidden md:inline" title="Signed in">
@@ -38,9 +37,8 @@ export function SiteHeader({ email }: { email: string }) {
         </div>
         <div className="flex flex-wrap items-baseline justify-between gap-3 py-6">
           <Link href="/wardrobe" className="wordmark text-4xl sm:text-5xl">
-            ATELIER
+            STYLISTAS
           </Link>
-          <p className="eyebrow">Wardrobe, considered</p>
         </div>
       </div>
       <nav aria-label="Main" className="border-t border-line">

@@ -32,12 +32,10 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   return (
     <div className="relative flex min-h-dvh flex-col items-center justify-center px-6 py-16">
       <ThemeToggle className="absolute top-4 right-4 sm:top-6 sm:right-6" />
-      <p className="wordmark text-5xl">ATELIER</p>
-      <p className="eyebrow mt-2">Wardrobe, considered</p>
+      <p className="wordmark text-5xl">STYLISTAS</p>
 
       <form onSubmit={onSubmit} className="mt-14 w-full max-w-sm">
-        <p className="eyebrow">{isSignup ? "New here" : "Welcome back"}</p>
-        <h1 className="display mt-1 text-5xl">{isSignup ? "Open your archive" : "Sign in"}</h1>
+        <h1 className="display text-5xl">{isSignup ? "Create an account" : "Sign in"}</h1>
 
         <label className="mt-10 block">
           <span className="eyebrow">Email</span>
@@ -68,7 +66,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         </button>
 
         <p className="mt-6 text-center text-sm text-muted">
-          {isSignup ? "Already have an account? " : "New to Atelier? "}
+          {isSignup ? "Already have an account? " : "New to Stylistas? "}
           <Link href={isSignup ? "/login" : "/signup"} className="text-ink underline underline-offset-4">
             {isSignup ? "Sign in" : "Create an account"}
           </Link>

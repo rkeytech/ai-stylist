@@ -302,7 +302,7 @@ check("owner can delete a saved try-on", (await alice.call(`/api/try-on/${first.
 // --- pages & sign out ---
 for (const page of ["/wardrobe", "/collections", workUrl.replace("/api", ""), `/stylist?collection=${work.data.collection.id}`, `/stylist?anchor=${items.top.id}`, "/stylist", "/try-on"]) {
   const res = await alice.call(page);
-  check(`page ${page} renders for a signed-in user`, res.status === 200 && res.data.toString().includes("ATELIER"), res.status);
+  check(`page ${page} renders for a signed-in user`, res.status === 200 && res.data.toString().includes("STYLISTAS"), res.status);
 }
 const loginPage = await alice.call("/login");
 check("signed-in users skip the login page", [307, 308].includes(loginPage.status) && loginPage.headers.get("location")?.includes("/wardrobe"));

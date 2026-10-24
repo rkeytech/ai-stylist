@@ -13,7 +13,7 @@ const serif = Cormorant_Garamond({
 const sans = Jost({ subsets: ["latin"], variable: "--font-jost" });
 
 export const metadata: Metadata = {
-  title: { default: "Atelier — A Private Wardrobe", template: "%s · Atelier" },
+  title: { default: "Stylistas — A Private Wardrobe", template: "%s · Stylistas" },
   description: "A private wardrobe and AI stylist, kept entirely on your own machine.",
 };
 

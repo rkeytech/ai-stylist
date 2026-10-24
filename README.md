@@ -1,4 +1,4 @@
-# Atelier — a private wardrobe and AI stylist
+# Stylistas — a private wardrobe and AI stylist
 
 A normal Next.js codebase that runs entirely on your machine: a SQLite database, private file storage and
 OpenRouter for the AI.
@@ -12,9 +12,9 @@ OpenRouter for the AI.
 
 | Feature | What it does |
 | --- | --- |
-| Editorial design | An "ATELIER" masthead with two tabs: **Wardrobe** and **Stylist** (Try-On is temporarily disabled - see above) |
+| Editorial design | A "STYLISTAS" masthead with three tabs: **Atelier** (your wardrobe), **Collections** and **Stylist** (Try-On is temporarily disabled - see above) |
 | Real authentication | Email and password sign-up (you're signed in straight away), sign-in and sign-out. Every item, look and photo is private to its account. |
-| The Wardrobe | Upload a photo (from your phone camera or library). A vision model (via OpenRouter) detects the **category** and **main colour**, and names the item if you left the name blank. The grid has category filters (All · Top · Bottom · Dress · Shoes · Outerwear), an empty state and a Remove button. |
+| The Atelier (wardrobe) | Upload a photo (from your phone camera or library). A vision model (via OpenRouter) detects the **category** and **main colour**, and names the item if you left the name blank. The grid has category filters (All · Top · Bottom · Dress · Shoes · Outerwear), an empty state and a Remove button. |
 | The AI Stylist | **Style me** sends your wardrobe photos through OpenRouter, which returns up to **3 looks**. Each look is (top + bottom) or (dress), plus optional shoes and outerwear. A dress is never combined with a top or bottom, and only pieces you own are used. The model considers colour harmony and formality, and each look has a reason that names the actual colours and items. |
 | Live Camera Try-On | *Temporarily disabled* - a live camera view where you could pick a stylist look and generate yourself wearing the outfit. |
 

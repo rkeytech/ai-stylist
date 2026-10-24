@@ -99,8 +99,7 @@ export function WardrobeView({
   return (
     <div>
       <PageHeading
-        eyebrow="The Archive"
-        title="Wardrobe"
+        title="Atelier"
         action={
           <button type="button" className="btn-primary" onClick={() => dialogRef.current?.showModal()}>
             Upload item
@@ -131,8 +130,8 @@ export function WardrobeView({
           <p className="display text-3xl">Nothing filed here yet</p>
           <p className="mx-auto mt-3 max-w-md text-muted">
             {filter === "all"
-              ? "Upload a photo of something you own to begin the archive."
-              : `No ${CATEGORY_LABELS[filter].toLowerCase()} in your wardrobe yet.`}
+              ? "Upload a photo of something you own to get started."
+              : `No ${CATEGORY_LABELS[filter].toLowerCase()} in your Atelier yet.`}
           </p>
           <button type="button" className="btn-outline mt-6" onClick={() => dialogRef.current?.showModal()}>
             Upload item
@@ -356,7 +355,7 @@ function UploadDialog({
         {error && <ErrorNote>{error}</ErrorNote>}
 
         <button type="submit" disabled={pending} className="btn-primary mt-8 w-full">
-          {pending ? (manual ? "Filing it…" : "AI is looking at your photo…") : "Add to wardrobe"}
+          {pending ? (manual ? "Filing it…" : "AI is looking at your photo…") : "Add to Atelier"}
         </button>
       </form>
     </dialog>

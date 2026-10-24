@@ -139,7 +139,7 @@ async function openRouterChat(model: string, content: ContentPart[]): Promise<st
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
       "HTTP-Referer": "http://localhost",
-      "X-Title": "Atelier",
+      "X-Title": "Stylistas",
     },
     body: JSON.stringify({
       model,

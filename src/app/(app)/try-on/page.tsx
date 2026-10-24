@@ -12,10 +12,10 @@ export default async function TryOnPage() {
   await requirePageUser();
   return (
     <div>
-      <PageHeading eyebrow="The Fitting Room" title="Try-On" />
+      <PageHeading title="Try-On" />
       <p className="mt-6 border-l-2 border-accent bg-card/60 px-4 py-3 text-sm text-muted">
         <strong className="font-medium text-ink">Try-On is temporarily disabled.</strong> This feature needs an
-        image-generation model, which isn&apos;t configured right now. Wardrobe and Stylist are unaffected.
+        image-generation model, which isn&apos;t configured right now. Atelier and Stylist are unaffected.
       </p>
     </div>
   );

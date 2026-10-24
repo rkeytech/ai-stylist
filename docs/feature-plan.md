@@ -1,6 +1,6 @@
 # Feature plan
 
-This is the living roadmap for Atelier. It tracks what's shipped, what's in progress, what's planned, and
+This is the living roadmap for Stylistas. It tracks what's shipped, what's in progress, what's planned, and
 what's still just an idea — as a task list, so status is visible at a glance and changes over time.
 
 ## For AI agents working in this repo
@@ -66,6 +66,23 @@ Status markers used below: `[x]` done and shipped, `[~]` in progress, `[ ]` not 
       Esc or a backdrop click. Client-only, no API change — cards still show at most 4 tiles with "+N".
 - [x] Rebrand: "Styled" → "Atelier" — README, page titles/nav, `AuthForm.tsx` copy, OpenRouter `X-Title`; landed in the "changed to openrouter" commits (verified 2026-10-23: clean tree, typecheck + unit tests pass)
 
+- [x] Rebrand + copy cleanup:
+  - [x] "Atelier" → **"Stylistas"** — masthead/auth wordmarks, page titles, `AuthForm.tsx` copy, OpenRouter
+        `X-Title`, README, `package.json` name/description, `CLAUDE.md`, this file, and the e2e masthead check.
+        Internal identifiers deliberately kept: the `styled_session` cookie and `styled.db` (renaming them would
+        sign everyone out / orphan the database) and the `styled-*` image download filename.
+  - [x] **Wardrobe** section → **"Atelier"** — nav label, page title/heading, and every UI sentence that names the
+        section ("Whole Atelier", "Add to Atelier", "Go to Atelier"...). `/wardrobe`, `WardrobeView`, `items`
+        API/DB names unchanged.
+  - [x] Removed the descriptive `intro` text under the Collections and Try-On page titles (Stylist's was already
+        gone, Wardrobe had none). Kept: the collection detail's piece count, empty states, and status messages.
+  - [x] Removed the decorative editorial labels: page eyebrows ("The Archive", "The Column", "The Edit", "The
+        Fitting Room", "Collection" — `PageHeading` no longer takes an `eyebrow`), "Private Edition" in the top bar,
+        the "Wardrobe, considered" tagline (masthead + auth), "The brief" in the Stylist panel (the phone toggle
+        now just shows the summary), the auth "New here"/"Welcome back" eyebrows, and "archive" wording ("Open
+        your archive" → "Create an account"). Functional labels (form fields, "Look 01", "Saved try-ons",
+        the i/ii/iii brief step numerals) were kept.
+
 ## In progress
 
 *(nothing in progress)*
@@ -94,12 +111,6 @@ Status markers used below: `[x]` done and shipped, `[~]` in progress, `[ ]` not 
   - [ ] Companion Flutter Android app
   - Note: `docs/mobile-plan.md` predates the OpenRouter migration and still references Gemini model names in
     places — treat its AI-provider specifics as stale, its API/auth/architecture plan as current.
-- [ ] Rebrand + copy cleanup:
-  - [ ] "Atelier" → **"Stylistas"** everywhere the app name appears (README, page titles/nav, `AuthForm.tsx`
-        copy, OpenRouter `X-Title`, `CLAUDE.md`, this file).
-  - [ ] Rename the **Wardrobe** section to **"Atelier"** — visible labels only (nav label, page headings, UI copy).
-        The `/wardrobe` URL stays as is, and `items` API/DB names are unchanged.
-  - [ ] Remove the description/helper text under page titles and section subtitles across the app.
 - [ ] **Overcoat** clothing category — a new seventh category for jackets, blazers, coats, etc., worn over a top
       or a dress. Decided:
   - `outerwear` stays as a separate category, now meaning **bags, scarves and similar**; `accessories` means

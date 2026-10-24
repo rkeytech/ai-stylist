@@ -43,9 +43,7 @@ export function CollectionsView({
   return (
     <div>
       <PageHeading
-        eyebrow="The Edit"
         title="Collections"
-        intro="Group pieces into sets - work, travel, a capsule - and let the stylist draw from just one."
       />
 
       <form onSubmit={create} className="mt-8 flex flex-wrap items-end gap-4">
@@ -74,7 +72,7 @@ export function CollectionsView({
         <div className="mt-10 border border-dashed border-line px-6 py-16 text-center">
           <p className="display text-3xl">No collections yet</p>
           <p className="mx-auto mt-3 max-w-md text-muted">
-            Name your first collection above, then choose which pieces from your wardrobe belong in it.
+            Name your first collection above, then choose which pieces from your Atelier belong in it.
           </p>
         </div>
       ) : (

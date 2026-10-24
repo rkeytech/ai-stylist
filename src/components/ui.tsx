@@ -3,12 +3,10 @@ import type { AiMode } from "@/lib/ai";
 import { describePiece, type WardrobeItem } from "@/lib/wardrobe";
 
 export function PageHeading({
-  eyebrow,
   title,
   intro,
   action,
 }: {
-  eyebrow: string;
   title: string;
   intro?: string;
   action?: ReactNode;
@@ -16,8 +14,7 @@ export function PageHeading({
   return (
     <div className="flex flex-wrap items-end justify-between gap-6">
       <div>
-        <p className="eyebrow">{eyebrow}</p>
-        <h1 className="display mt-1 text-5xl sm:text-6xl">{title}</h1>
+        <h1 className="display text-5xl sm:text-6xl">{title}</h1>
         {intro && <p className="mt-3 max-w-xl text-muted">{intro}</p>}
       </div>
       {action}

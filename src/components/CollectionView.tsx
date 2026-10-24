@@ -142,7 +142,6 @@ export function CollectionView({ initialCollection, items }: { initialCollection
           </form>
         ) : (
           <PageHeading
-            eyebrow="Collection"
             title={collection.name}
             intro={`${members.length} ${members.length === 1 ? "piece" : "pieces"}.`}
             action={
@@ -170,7 +169,7 @@ export function CollectionView({ initialCollection, items }: { initialCollection
           </button>
           {confirmingDelete ? (
             <>
-              <span className="text-xs text-muted">Delete this collection? Its pieces stay in your wardrobe.</span>
+              <span className="text-xs text-muted">Delete this collection? Its pieces stay in your Atelier.</span>
               <button type="button" className="btn-link text-accent" disabled={pending !== null} onClick={remove}>
                 {pending === "delete" ? "Deleting…" : "Yes"}
               </button>
@@ -190,16 +189,16 @@ export function CollectionView({ initialCollection, items }: { initialCollection
 
       {items.length === 0 ? (
         <div className="mt-10 border border-dashed border-line px-6 py-16 text-center">
-          <p className="display text-3xl">Your wardrobe is empty</p>
+          <p className="display text-3xl">Your Atelier is empty</p>
           <p className="mx-auto mt-3 max-w-md text-muted">Upload some pieces first, then come back to group them.</p>
           <Link href="/wardrobe" className="btn-outline mt-6">
-            Go to wardrobe
+            Go to Atelier
           </Link>
         </div>
       ) : members.length === 0 ? (
         <div className="mt-10 border border-dashed border-line px-6 py-16 text-center">
           <p className="display text-3xl">No pieces yet</p>
-          <p className="mx-auto mt-3 max-w-md text-muted">Add pieces from your wardrobe to build this collection.</p>
+          <p className="mx-auto mt-3 max-w-md text-muted">Add pieces from your Atelier to build this collection.</p>
           <button type="button" className="btn-outline mt-6" onClick={openPicker} disabled={pending !== null}>
             Add pieces
           </button>
@@ -287,7 +286,7 @@ function PickerDialog({
       <div className="flex max-h-[85vh] flex-col">
         <div className="flex items-start justify-between gap-4 p-6 sm:px-8">
           <div>
-            <p className="eyebrow">From your wardrobe</p>
+            <p className="eyebrow">From your Atelier</p>
             <h2 id="picker-title" className="display mt-1 text-4xl">
               Add pieces
             </h2>
@@ -304,7 +303,7 @@ function PickerDialog({
 
         <div className="min-h-0 flex-1 overflow-y-auto border-y border-line px-6 py-6 sm:px-8">
           {candidates.length === 0 ? (
-            <p className="py-10 text-center text-muted">Every piece in your wardrobe is already in this collection.</p>
+            <p className="py-10 text-center text-muted">Every piece in your Atelier is already in this collection.</p>
           ) : (
             <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4">
               {candidates.map((item) => {

@@ -4,7 +4,7 @@ import { aiMode } from "@/lib/ai";
 import { listColours, listItems, toWardrobeItem } from "@/lib/repo";
 import { requirePageUser } from "@/lib/session";
 
-export const metadata: Metadata = { title: "Wardrobe" };
+export const metadata: Metadata = { title: "Atelier" };
 
 export default async function WardrobePage() {
   const user = await requirePageUser();

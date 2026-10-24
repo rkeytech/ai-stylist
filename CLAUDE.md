@@ -4,9 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Atelier — a personal AI stylist app, a plain Next.js codebase running entirely on the local machine: SQLite,
+Stylistas — a personal AI stylist app, a plain Next.js codebase running entirely on the local machine: SQLite,
 private on-disk file storage, and OpenRouter for AI.
-Three features behind auth right now: **Wardrobe** (upload + auto-tag clothing photos), **Collections** (named
+Three features behind auth right now: **Wardrobe** — labelled **"Atelier"** in the UI, but `/wardrobe`, `WardrobeView`,
+`items` and all code names keep "wardrobe" — (upload + auto-tag clothing photos), **Collections** (named
 sets of wardrobe items, e.g. "Work"), **Stylist** ("Style me" → up to 3 AI-generated outfit looks, optionally for
 an occasion and/or drawn from one collection). **Try-On** (live camera capture + AI image generation wearing a chosen look)
 is temporarily disabled — see "Try-On is disabled" below.

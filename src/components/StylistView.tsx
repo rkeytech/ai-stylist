@@ -62,7 +62,7 @@ export function StylistView({
   }, [anchor, collection, items, itemsById]);
   const ready = anchor ? canStyleAround(pool, anchor) : canStyle(pool);
   const batchAnchor = (looks[0]?.anchorItemId && itemsById.get(looks[0].anchorItemId)) || null;
-  const summary = [anchor?.name, collection?.name ?? "Whole wardrobe", occasion.trim() || null]
+  const summary = [anchor?.name, collection?.name ?? "Whole Atelier", occasion.trim() || null]
     .filter(Boolean)
     .join(" · ");
 
@@ -91,7 +91,7 @@ export function StylistView({
   const notReady =
     ready ? null : anchor ? (
       <p className="text-sm leading-relaxed text-muted">
-        {collection ? <>&ldquo;{collection.name}&rdquo; needs</> : "Your wardrobe needs"} {missingAround(anchor)} to
+        {collection ? <>&ldquo;{collection.name}&rdquo; needs</> : "Your Atelier needs"} {missingAround(anchor)} to
         go with your {describePiece(anchor).toLowerCase()}.{" "}
         <Link
           href={collection ? `/collections/${collection.id}` : "/wardrobe"}
@@ -104,7 +104,7 @@ export function StylistView({
             {" "}
             or{" "}
             <button type="button" className="text-ink underline underline-offset-4" onClick={() => setCollectionId("")}>
-              use the whole wardrobe
+              use the whole Atelier
             </button>
           </>
         )}
@@ -118,7 +118,7 @@ export function StylistView({
         </Link>{" "}
         or{" "}
         <button type="button" className="text-ink underline underline-offset-4" onClick={() => setCollectionId("")}>
-          use the whole wardrobe
+          use the whole Atelier
         </button>
         .
       </p>
@@ -126,7 +126,7 @@ export function StylistView({
       <p className="text-sm leading-relaxed text-muted">
         Add at least a top and a bottom, or a dress, to your{" "}
         <Link href="/wardrobe" className="text-ink underline underline-offset-4">
-          wardrobe
+          Atelier
         </Link>{" "}
         first.
       </p>
@@ -134,11 +134,11 @@ export function StylistView({
 
   return (
     <div>
-      <PageHeading eyebrow="The Column" title="Stylist" />
+      <PageHeading title="Stylist" />
       <AiNotice mode={aiMode} />
 
       <div className="mt-9 flex flex-wrap items-start gap-10">
-        <aside aria-label="Your brief" className="w-full border border-ink lg:w-[340px] lg:shrink-0">
+        <aside aria-label="Styling options" className="w-full border border-ink lg:w-[340px] lg:shrink-0">
           <button
             type="button"
             aria-expanded={briefOpen}
@@ -146,10 +146,7 @@ export function StylistView({
             onClick={() => setBriefOpen(!briefOpen)}
             className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left lg:hidden"
           >
-            <span className="min-w-0 flex-1">
-              <span className="eyebrow block">The brief</span>
-              {!briefOpen && <span className="mt-1 block truncate text-sm">{summary}</span>}
-            </span>
+            <span className="min-w-0 flex-1 truncate text-sm">{summary}</span>
             <span className="eyebrow">{briefOpen ? "Close" : "Edit"}</span>
           </button>
 
@@ -157,8 +154,6 @@ export function StylistView({
             id="stylist-brief"
             className={`${briefOpen ? "flex" : "hidden"} flex-col gap-7 border-t border-line p-6 lg:flex lg:border-t-0`}
           >
-            <p className="eyebrow hidden text-ink lg:block">The brief</p>
-
             <div>
               <BriefStep numeral="i" label="Style around" />
               {anchor ? (
@@ -188,7 +183,7 @@ export function StylistView({
                   href="/wardrobe"
                   className="mt-3 flex min-h-12 items-center justify-center border border-dashed border-muted px-3 text-center text-sm text-muted transition-colors hover:border-ink hover:text-ink"
                 >
-                  Any piece — or pick one in your wardrobe
+                  Any piece — or pick one in your Atelier
                 </Link>
               )}
             </div>
@@ -197,7 +192,7 @@ export function StylistView({
               <BriefStep numeral="ii" label="Draw from" />
               <div role="radiogroup" aria-label="Draw from" className="mt-2.5 border-t border-line">
                 <DrawFromOption
-                  label="Whole wardrobe"
+                  label="Whole Atelier"
                   count={items.length}
                   checked={!collection}
                   disabled={pending}
@@ -258,7 +253,7 @@ export function StylistView({
                 disabled={!ready || pending}
                 className="btn-primary w-full py-4"
               >
-                {pending ? "Styling your wardrobe…" : looks.length > 0 ? "Style me again" : "Style me"}
+                {pending ? "Styling your Atelier…" : looks.length > 0 ? "Style me again" : "Style me"}
               </button>
               {!collection && notReady && <div className="mt-3">{notReady}</div>}
               {error && <ErrorNote>{error}</ErrorNote>}
@@ -269,7 +264,7 @@ export function StylistView({
         <section aria-label="Looks" className="min-w-0 flex-[999_1_560px]">
           {pending ? (
             <>
-              <BatchHeading title="Styling your wardrobe…" />
+              <BatchHeading title="Styling your Atelier…" />
               <LookGrid busy>
                 {[0, 1, 2].map((key) => (
                   <div key={key} className="animate-pulse border border-line bg-card">
@@ -294,7 +289,7 @@ export function StylistView({
               <p className="mt-4 text-muted">
                 {ready
                   ? "Press “Style me” and your stylist will put three looks together from your pieces."
-                  : "Your looks will appear here once the brief has enough pieces to work with."}
+                  : "Your looks will appear here once there are enough pieces to work with."}
               </p>
               <LookGrid>
                 {[0, 1, 2].map((index) => (
@@ -330,7 +325,7 @@ export function StylistView({
               {looks.length < MAX_LOOKS && (
                 <p className="mt-6 border-t border-line pt-6 text-sm text-muted">
                   Only {looks.length} valid {looks.length === 1 ? "look" : "looks"} this time - add more pieces to
-                  your wardrobe for more variety.
+                  your Atelier for more variety.
                 </p>
               )}
             </>

@@ -211,9 +211,7 @@ export function TryOnView({
   return (
     <div>
       <PageHeading
-        eyebrow="The Fitting Room"
         title="Try-On"
-        intro="Pick one of your stylist's looks, stand back from the camera and see yourself wearing it."
       />
       <AiNotice mode={aiMode} />
 

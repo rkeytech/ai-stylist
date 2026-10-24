@@ -1,8 +1,8 @@
 {
-  "name": "atelier-ai-stylist",
+  "name": "stylistas-ai-stylist",
   "version": "1.0.0",
   "private": true,
-  "description": "Atelier - a private wardrobe and AI stylist: wardrobe, AI outfit suggestions and camera try-on.",
+  "description": "Stylistas - a private wardrobe and AI stylist: wardrobe, AI outfit suggestions and camera try-on.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

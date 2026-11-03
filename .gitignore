@@ -21,3 +21,6 @@ data/
 npm-debug.log*
 .DS_Store
 Thumbs.db
+
+# next dev logs
+.next-dev.*.log

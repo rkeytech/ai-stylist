@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canStyle,
+  capForStyling,
   canStyleAround,
   checkOutfit,
   missingAround,
@@ -169,5 +170,31 @@ describe("styling around one item", () => {
       expect(look.itemIds.filter((id) => id === "a2")).toHaveLength(1);
       expect(look.itemIds).not.toContain("a1");
     }
+  });
+});
+
+describe("capForStyling", () => {
+  const many: StylableItem[] = [
+    ...Array.from({ length: 30 }, (_, i): StylableItem => ({ id: `t${i}`, name: `Top ${i}`, category: "top", colour: "blue" })),
+    ...Array.from({ length: 30 }, (_, i): StylableItem => ({ id: `b${i}`, name: `Bottom ${i}`, category: "bottom", colour: "black" })),
+    { id: "s1", name: "Boots", category: "shoes", colour: "brown" },
+    { id: "o1", name: "Coat", category: "outerwear", colour: "grey" },
+    { id: "a1", name: "Scarf", category: "accessories", colour: "red" },
+  ];
+
+  it("keeps shoes, outerwear and accessories when the cap would otherwise cut them", () => {
+    const capped = capForStyling(many, 10);
+    expect(capped).toHaveLength(10);
+    for (const id of ["s1", "o1", "a1"]) expect(capped.map((i) => i.id)).toContain(id);
+  });
+
+  it("always keeps the anchor, first", () => {
+    const capped = capForStyling(many, 10, "b29");
+    expect(capped[0].id).toBe("b29");
+    expect(capped).toHaveLength(10);
+  });
+
+  it("returns everything when under the cap", () => {
+    expect(capForStyling(items, 40)).toHaveLength(items.length);
   });
 });

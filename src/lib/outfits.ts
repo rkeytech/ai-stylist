@@ -78,6 +78,29 @@ export function checkOutfit(itemIds: string[], byId: Map<string, StylableItem>):
   return null;
 }
 
+/**
+ * Trims a wardrobe to `max` items for the stylist request without starving any category: the anchor goes
+ * first, then items are taken round-robin across categories (in their given order), so shoes, outerwear
+ * and accessories survive the cap even when tops and bottoms dominate.
+ */
+export function capForStyling<T extends StylableItem>(items: T[], max: number, anchorId?: string | null): T[] {
+  if (items.length <= max) return anchorId ? [...items].sort((a, b) => +(b.id === anchorId) - +(a.id === anchorId)) : items;
+
+  const anchor = anchorId ? items.find((item) => item.id === anchorId) : undefined;
+  const picked: T[] = anchor ? [anchor] : [];
+  const queues = new Map<Category, T[]>();
+  for (const item of items) {
+    if (item === anchor) continue;
+    queues.set(item.category, [...(queues.get(item.category) ?? []), item]);
+  }
+  while (picked.length < max && [...queues.values()].some((q) => q.length)) {
+    for (const queue of queues.values()) {
+      if (picked.length < max && queue.length) picked.push(queue.shift()!);
+    }
+  }
+  return picked;
+}
+
 export function orderItemIds(itemIds: string[], byId: Map<string, StylableItem>): string[] {
   return [...itemIds].sort(
     (a, b) => CATEGORY_ORDER[byId.get(a)!.category] - CATEGORY_ORDER[byId.get(b)!.category],

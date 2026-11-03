@@ -45,7 +45,9 @@ Node 22.13+ required. Dev machine is Windows/PowerShell. Only one app instance p
 5. **Keep changes small and in scope**: no drive-by refactors, no new dependencies without asking (the app is
    deliberately SDK-free and driver-free), no new planning docs.
 6. **Git**: commit only when asked; conventional-style messages (`feat:`, `fix:`, `refactor:`, `redesign:`); never
-   commit `.env*`, `data/`, or `.claude/`.
+   commit `.env*`, `data/`, or `.claude/`. **Work on the current branch in this checkout — never create git
+   worktrees or extra branches** (`EnterWorktree`, `git worktree add`, `isolation: "worktree"`), even in background
+   or parallel sessions, unless the user explicitly asks.
 7. **Update docs with code**: change behaviour → update `docs/architecture.md` (and `feature-plan.md`) in the same
    change. Keep this file short — it is loaded every session; put detail in `docs/`.
 
@@ -57,8 +59,8 @@ Node 22.13+ required. Dev machine is Windows/PowerShell. Only one app instance p
   `HttpError`/`AiError`; don't `try/catch` just to format errors.
 - **Model output is untrusted**: always sanitize (`sanitizeLooks()`, `tagItem` fallbacks). User text (e.g.
   occasion) goes into prompts JSON-quoted as data. New OpenRouter calls use `withModelFallback()` — no retries.
-- **Outfit validity** lives in `src/lib/outfits.ts` (one top + one bottom, or one dress; ≤1 shoes, ≤1 outerwear;
-  any accessories) — not in prompts.
+- **Outfit validity** lives in `src/lib/outfits.ts` (one top + one bottom, or one dress; **exactly one belt
+  and one bag**; ≤1 shoes, ≤1 outerwear; any accessories) — not in prompts.
 - **Categories are a closed set** (CHECK constraint); widening needs a table-rebuild migration in `db.ts`. Schema
   changes must be idempotent migrations that keep existing databases working.
 - **Uploads**: sniff magic bytes (`image-mime.ts`), never trust client MIME; paths go through `storage.ts`.

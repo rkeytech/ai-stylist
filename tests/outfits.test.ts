@@ -3,7 +3,7 @@ import {
   canStyle,
   canStyleAround,
   checkOutfit,
-  missingAround,
+  missingPieces,
   mockLooks,
   pickStylingPool,
   sanitizeLooks,
@@ -18,31 +18,43 @@ const items: StylableItem[] = [
   { id: "s1", name: "Espadrilles", category: "shoes", colour: "tan" },
   { id: "s2", name: "Heels", category: "shoes", colour: "lime" },
   { id: "o1", name: "Utility jacket", category: "outerwear", colour: "beige" },
+  { id: "k1", name: "Leather belt", category: "belt", colour: "brown" },
+  { id: "k2", name: "Woven belt", category: "belt", colour: "tan" },
+  { id: "g1", name: "Tote bag", category: "bag", colour: "black" },
+  { id: "g2", name: "Clutch", category: "bag", colour: "gold" },
   { id: "a1", name: "Gold hoop earrings", category: "accessories", colour: "gold" },
   { id: "a2", name: "Leather watch", category: "accessories", colour: "brown" },
 ];
 const byId = new Map(items.map((item) => [item.id, item]));
 
 describe("checkOutfit", () => {
-  it("accepts a top and a bottom, with optional shoes and outerwear", () => {
-    expect(checkOutfit(["t1", "b1"], byId)).toBeNull();
-    expect(checkOutfit(["t1", "b1", "s1", "o1"], byId)).toBeNull();
+  it("accepts a top and a bottom with a belt and a bag, and optional shoes and outerwear", () => {
+    expect(checkOutfit(["t1", "b1", "k1", "g1"], byId)).toBeNull();
+    expect(checkOutfit(["t1", "b1", "k1", "g1", "s1", "o1"], byId)).toBeNull();
   });
 
   it("accepts a dress on its own or with extras", () => {
-    expect(checkOutfit(["d1"], byId)).toBeNull();
-    expect(checkOutfit(["d1", "s2", "o1"], byId)).toBeNull();
+    expect(checkOutfit(["d1", "k1", "g1"], byId)).toBeNull();
+    expect(checkOutfit(["d1", "k1", "g1", "s2", "o1"], byId)).toBeNull();
   });
 
   it("allows any number of accessories", () => {
-    expect(checkOutfit(["t1", "b1", "a1"], byId)).toBeNull();
-    expect(checkOutfit(["t1", "b1", "a1", "a2"], byId)).toBeNull();
-    expect(checkOutfit(["d1", "a1", "a2"], byId)).toBeNull();
+    expect(checkOutfit(["t1", "b1", "k1", "g1", "a1"], byId)).toBeNull();
+    expect(checkOutfit(["t1", "b1", "k1", "g1", "a1", "a2"], byId)).toBeNull();
+    expect(checkOutfit(["d1", "k1", "g1", "a1", "a2"], byId)).toBeNull();
+  });
+
+  it("requires exactly one belt and one bag", () => {
+    expect(checkOutfit(["t1", "b1", "g1"], byId)).toMatch(/belt/);
+    expect(checkOutfit(["t1", "b1", "k1"], byId)).toMatch(/bag/);
+    expect(checkOutfit(["d1"], byId)).toMatch(/belt/);
+    expect(checkOutfit(["t1", "b1", "k1", "k2", "g1"], byId)).toMatch(/belt/);
+    expect(checkOutfit(["t1", "b1", "k1", "g1", "g2"], byId)).toMatch(/bag/);
   });
 
   it("never combines a dress with a bottom or a top", () => {
-    expect(checkOutfit(["d1", "b1"], byId)).toMatch(/dress/);
-    expect(checkOutfit(["d1", "t1"], byId)).toMatch(/dress/);
+    expect(checkOutfit(["d1", "b1", "k1", "g1"], byId)).toMatch(/dress/);
+    expect(checkOutfit(["d1", "t1", "k1", "g1"], byId)).toMatch(/dress/);
   });
 
   it("rejects incomplete, duplicated, doubled-up or unknown pieces", () => {
@@ -50,7 +62,7 @@ describe("checkOutfit", () => {
     expect(checkOutfit(["t1"], byId)).not.toBeNull();
     expect(checkOutfit(["b1", "s1"], byId)).not.toBeNull();
     expect(checkOutfit(["t1", "t2", "b1"], byId)).not.toBeNull();
-    expect(checkOutfit(["t1", "b1", "s1", "s2"], byId)).not.toBeNull();
+    expect(checkOutfit(["t1", "b1", "k1", "g1", "s1", "s2"], byId)).not.toBeNull();
     expect(checkOutfit(["t1", "b1", "b1"], byId)).not.toBeNull();
     expect(checkOutfit(["t1", "made-up"], byId)).not.toBeNull();
   });
@@ -60,21 +72,22 @@ describe("sanitizeLooks", () => {
   it("keeps valid looks, drops invalid and duplicate ones, caps at three and orders pieces", () => {
     const raw = {
       looks: [
-        { title: "Dress with trousers", itemIds: ["d1", "b1"], reason: "Breaks the rules." },
-        { title: "Resort", itemIds: ["s1", "b1", "t1"], reason: "Pink and blue." },
-        { title: "Same again", itemIds: ["t1", "b1", "s1"], reason: "Duplicate." },
-        { title: "Hallucinated", itemIds: ["t9", "b1"], reason: "Item does not exist." },
-        { title: "Evening", itemIds: ["d1", "s2"], reason: "Green and lime." },
-        { title: "Layered", itemIds: ["o1", "t2", "b1"], reason: "" },
-        { title: "One too many", itemIds: ["t2", "b1", "s2"], reason: "Fourth look." },
+        { title: "Dress with trousers", itemIds: ["d1", "b1", "k1", "g1"], reason: "Breaks the rules." },
+        { title: "No bag or belt", itemIds: ["t1", "b1", "s1"], reason: "Missing required pieces." },
+        { title: "Resort", itemIds: ["s1", "k1", "g1", "b1", "t1"], reason: "Pink and blue." },
+        { title: "Same again", itemIds: ["t1", "b1", "s1", "k1", "g1"], reason: "Duplicate." },
+        { title: "Hallucinated", itemIds: ["t9", "b1", "k1", "g1"], reason: "Item does not exist." },
+        { title: "Evening", itemIds: ["d1", "s2", "k2", "g2"], reason: "Green and lime." },
+        { title: "Layered", itemIds: ["o1", "t2", "b1", "k1", "g2"], reason: "" },
+        { title: "One too many", itemIds: ["t2", "b1", "s2", "k2", "g1"], reason: "Fourth look." },
       ],
     };
 
     const looks = sanitizeLooks(raw, items);
 
     expect(looks.map((look) => look.title)).toEqual(["Resort", "Evening", "Layered"]);
-    expect(looks[0].itemIds).toEqual(["t1", "b1", "s1"]);
-    expect(looks[2].itemIds).toEqual(["o1", "t2", "b1"]);
+    expect(looks[0].itemIds).toEqual(["t1", "b1", "k1", "s1", "g1"]);
+    expect(looks[2].itemIds).toEqual(["o1", "t2", "b1", "k1", "g2"]);
     expect(looks[2].reason).toContain("beige utility jacket");
   });
 
@@ -82,7 +95,7 @@ describe("sanitizeLooks", () => {
     expect(sanitizeLooks(null, items)).toEqual([]);
     expect(sanitizeLooks("not json", items)).toEqual([]);
     expect(sanitizeLooks({ looks: "nope" }, items)).toEqual([]);
-    expect(sanitizeLooks([{ itemIds: ["t1", 5, "b1"] }], items)).toEqual([]);
+    expect(sanitizeLooks([{ itemIds: ["t1", 5, "b1", "k1", "g1"] }], items)).toEqual([]);
   });
 });
 
@@ -101,21 +114,37 @@ describe("mockLooks and canStyle", () => {
     }
   });
 
+  it("puts exactly one belt and one bag in every look", () => {
+    for (const look of mockLooks(items)) {
+      const categories = look.itemIds.map((id) => byId.get(id)?.category);
+      expect(categories.filter((c) => c === "belt")).toHaveLength(1);
+      expect(categories.filter((c) => c === "bag")).toHaveLength(1);
+    }
+  });
+
   it("doesn't repeat a colour the item name already mentions", () => {
     const named: StylableItem[] = [
       { id: "a", name: "Blue shirt", category: "top", colour: "blue" },
       { id: "b", name: "Jeans", category: "bottom", colour: "indigo" },
+      { id: "c", name: "Belt", category: "belt", colour: "black" },
+      { id: "d", name: "Tote", category: "bag", colour: "tan" },
     ];
     const [look] = mockLooks(named);
-    expect(look.reason).toContain("the blue shirt and the indigo jeans");
+    expect(look.reason).toContain("the blue shirt, the indigo jeans");
     expect(look.reason).not.toMatch(/blue blue/i);
   });
 
-  it("needs a dress, or a top and a bottom", () => {
-    expect(canStyle([{ category: "top" }, { category: "shoes" }])).toBe(false);
-    expect(canStyle([{ category: "top" }, { category: "bottom" }])).toBe(true);
-    expect(canStyle([{ category: "dress" }])).toBe(true);
+  it("needs a dress, or a top and a bottom, plus a belt and a bag", () => {
+    const belt = { category: "belt" as const };
+    const bag = { category: "bag" as const };
+    expect(canStyle([{ category: "top" }, { category: "shoes" }, belt, bag])).toBe(false);
+    expect(canStyle([{ category: "top" }, { category: "bottom" }, belt, bag])).toBe(true);
+    expect(canStyle([{ category: "dress" }, belt, bag])).toBe(true);
+    expect(canStyle([{ category: "dress" }, bag])).toBe(false);
+    expect(canStyle([{ category: "dress" }, belt])).toBe(false);
     expect(mockLooks(items.filter((item) => item.category === "top"))).toEqual([]);
+    expect(mockLooks(items.filter((item) => item.category !== "bag"))).toEqual([]);
+    expect(mockLooks(items.filter((item) => item.category !== "belt"))).toEqual([]);
   });
 });
 
@@ -130,23 +159,29 @@ describe("styling around one item", () => {
   };
 
   it("knows when a piece can anchor an outfit", () => {
-    expect(canStyleAround([{ category: "top" }, { category: "bottom" }], { category: "top" })).toBe(true);
-    expect(canStyleAround([{ category: "top" }, { category: "dress" }], { category: "top" })).toBe(false);
-    expect(canStyleAround([{ category: "bottom" }, { category: "top" }], { category: "bottom" })).toBe(true);
-    expect(canStyleAround([{ category: "bottom" }], { category: "bottom" })).toBe(false);
-    expect(canStyleAround([{ category: "dress" }], { category: "dress" })).toBe(true);
-    expect(canStyleAround([{ category: "shoes" }, { category: "dress" }], { category: "shoes" })).toBe(true);
-    expect(canStyleAround([{ category: "accessories" }, { category: "top" }], { category: "accessories" })).toBe(false);
-    expect(missingAround({ category: "top" })).toBe("a bottom");
-    expect(missingAround({ category: "outerwear" })).toMatch(/dress/);
+    const rest = [{ category: "belt" as const }, { category: "bag" as const }];
+    expect(canStyleAround([{ category: "top" }, { category: "bottom" }, ...rest], { category: "top" })).toBe(true);
+    expect(canStyleAround([{ category: "top" }, { category: "dress" }, ...rest], { category: "top" })).toBe(false);
+    expect(canStyleAround([{ category: "bottom" }, { category: "top" }, ...rest], { category: "bottom" })).toBe(true);
+    expect(canStyleAround([{ category: "bottom" }, ...rest], { category: "bottom" })).toBe(false);
+    expect(canStyleAround([{ category: "dress" }, ...rest], { category: "dress" })).toBe(true);
+    expect(canStyleAround([{ category: "shoes" }, { category: "dress" }, ...rest], { category: "shoes" })).toBe(true);
+    expect(canStyleAround([{ category: "accessories" }, { category: "top" }, ...rest], { category: "accessories" })).toBe(false);
+    expect(canStyleAround([{ category: "dress" }, { category: "belt" }], { category: "dress" })).toBe(false);
+    expect(canStyleAround([{ category: "belt" }, { category: "bag" }, { category: "dress" }], { category: "belt" })).toBe(true);
+    expect(missingPieces([{ category: "top" }, ...rest], { category: "top" })).toBe("a bottom");
+    expect(missingPieces([{ category: "outerwear" }, ...rest], { category: "outerwear" })).toMatch(/dress/);
+    expect(missingPieces([{ category: "dress" }])).toBe("a belt and a bag");
+    expect(missingPieces([{ category: "top" }], { category: "top" })).toBe("a bottom, plus a belt and a bag");
+    expect(missingPieces([{ category: "dress" }, ...rest])).toBe("");
   });
 
   it("drops model looks that leave the anchor out", () => {
     const raw = {
       looks: [
-        { title: "With it", reason: "r", itemIds: ["t1", "b1", "s1"] },
-        { title: "Without it", reason: "r", itemIds: ["d1"] },
-        { title: "Also with it", reason: "r", itemIds: ["t1", "b1"] },
+        { title: "With it", reason: "r", itemIds: ["t1", "b1", "s1", "k1", "g1"] },
+        { title: "Without it", reason: "r", itemIds: ["d1", "k1", "g1"] },
+        { title: "Also with it", reason: "r", itemIds: ["t1", "b1", "k1", "g1"] },
       ],
     };
     expect(sanitizeLooks(raw, items, { anchorId: "t1" }).map((look) => look.title)).toEqual(["With it", "Also with it"]);
@@ -163,6 +198,11 @@ describe("styling around one item", () => {
     expect(anchored("s2")).toHaveLength(3);
     for (const look of anchored("s2")) expect(look.itemIds).not.toContain("s1");
     expect(anchored("o1")).toHaveLength(3);
+  });
+
+  it("puts a belt or bag anchor into every look, in place of the round-robin pick", () => {
+    for (const look of anchored("k2")) expect(look.itemIds).not.toContain("k1");
+    for (const look of anchored("g2")) expect(look.itemIds).not.toContain("g1");
   });
 
   it("adds an accessory anchor once, instead of the round-robin accessory", () => {
@@ -184,6 +224,8 @@ describe("pickStylingPool", () => {
     ...Array.from({ length: 12 }, (_, i) => piece(`s${i}`, "shoes")),
     ...Array.from({ length: 12 }, (_, i) => piece(`o${i}`, "outerwear")),
     ...Array.from({ length: 6 }, (_, i) => piece(`a${i}`, "accessories")),
+    ...Array.from({ length: 2 }, (_, i) => piece(`k${i}`, "belt")),
+    ...Array.from({ length: 2 }, (_, i) => piece(`g${i}`, "bag")),
     ...Array.from({ length: 3 }, (_, i) => piece(`d${i}`, "dress")),
   ]; // 93 pieces
   const ids = (pool: Piece[]) => pool.map((p) => p.id);
@@ -198,7 +240,7 @@ describe("pickStylingPool", () => {
     const pool = pickStylingPool(many, 40);
     expect(pool).toHaveLength(40);
     expect(new Set(ids(pool)).size).toBe(40);
-    for (const category of ["top", "bottom", "dress", "shoes", "outerwear", "accessories"] as const) {
+    for (const category of ["top", "bottom", "dress", "shoes", "outerwear", "belt", "bag", "accessories"] as const) {
       expect(count(pool, category)).toBeGreaterThanOrEqual(1);
     }
     expect(count(pool, "top")).toBeGreaterThan(count(pool, "shoes"));

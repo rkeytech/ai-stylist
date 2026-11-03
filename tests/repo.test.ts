@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeDb } from "@/lib/db";
 import {
@@ -49,7 +50,7 @@ afterAll(() => {
 function addItem(
   userId: string,
   id: string,
-  category: "top" | "bottom" | "dress" | "shoes" | "outerwear" | "accessories",
+  category: "top" | "bottom" | "dress" | "shoes" | "outerwear" | "belt" | "bag" | "accessories",
 ) {
   return insertItem({
     id,
@@ -255,5 +256,49 @@ describe("collections", () => {
     expect(setCollectionItems(bob.id, secret.id, ["p-bob-top"])).toBeUndefined();
     expect(deleteCollection(bob.id, secret.id)).toBe(false);
     expect(getCollection(alice.id, secret.id)).toMatchObject({ name: "Secret", item_ids: ["p-dress"] });
+  });
+});
+
+describe("belt and bag category migration", () => {
+  it("widens an existing items table, keeping rows, last_offered_at and collection memberships", () => {
+    closeDb();
+    const legacyDir = fs.mkdtempSync(path.join(os.tmpdir(), "styled-legacy-"));
+    const legacy = new DatabaseSync(path.join(legacyDir, "styled.db"));
+    legacy.exec(`
+      PRAGMA foreign_keys = ON;
+      CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE COLLATE NOCASE, password_hash TEXT NOT NULL, created_at INTEGER NOT NULL);
+      CREATE TABLE items (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL CHECK (category IN ('top', 'bottom', 'dress', 'shoes', 'outerwear', 'accessories')),
+        colour TEXT NOT NULL, image_path TEXT NOT NULL, mime_type TEXT NOT NULL, created_at INTEGER NOT NULL,
+        last_offered_at INTEGER
+      );
+      CREATE TABLE collections (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, name TEXT NOT NULL, created_at INTEGER NOT NULL);
+      CREATE TABLE collection_items (
+        collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+        item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+        PRIMARY KEY (collection_id, item_id)
+      );
+      INSERT INTO users VALUES ('u1', 'legacy@example.com', 'hash', 1);
+      INSERT INTO items VALUES ('i1', 'u1', 'Tee', 'top', 'blue', 'u1/i1.jpg', 'image/jpeg', 1, 42);
+      INSERT INTO collections VALUES ('c1', 'u1', 'Work', 1);
+      INSERT INTO collection_items VALUES ('c1', 'i1');
+    `);
+    legacy.close();
+
+    const previous = process.env.DATA_DIR;
+    process.env.DATA_DIR = legacyDir;
+    try {
+      expect(getItem("u1", "i1")).toMatchObject({ name: "Tee", category: "top", last_offered_at: 42 });
+      expect(getCollection("u1", "c1")?.item_ids).toEqual(["i1"]);
+      expect(addItem("u1", "belt1", "belt")).toBeDefined();
+      expect(addItem("u1", "bag1", "bag")).toBeDefined();
+    } finally {
+      closeDb();
+      process.env.DATA_DIR = previous;
+      fs.rmSync(legacyDir, { recursive: true, force: true });
+    }
   });
 });

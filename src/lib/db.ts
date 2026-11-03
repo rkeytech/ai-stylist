@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS items (
   id         TEXT PRIMARY KEY,
   user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name       TEXT NOT NULL,
-  category   TEXT NOT NULL CHECK (category IN ('top', 'bottom', 'dress', 'shoes', 'outerwear', 'accessories')),
+  category   TEXT NOT NULL CHECK (category IN ('top', 'bottom', 'dress', 'shoes', 'outerwear', 'belt', 'bag', 'accessories')),
   colour     TEXT NOT NULL,
   image_path TEXT NOT NULL,
   mime_type  TEXT NOT NULL,
@@ -125,6 +125,55 @@ function migrateAccessoriesCategory(db: DatabaseSync): void {
   }
 }
 
+/**
+ * Same table rebuild for the "belt" and "bag" categories. Unlike the accessories migration this one keeps
+ * `last_offered_at`, and rebuilds with foreign keys off: dropping the old `items` table with them on would
+ * cascade-delete every `collection_items` row.
+ */
+function migrateBeltBagCategories(db: DatabaseSync): void {
+  const table = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'items'").get() as
+    | { sql?: string }
+    | undefined;
+  if (!table?.sql || table.sql.includes("'belt'")) return;
+
+  const hasOffered = (db.prepare("PRAGMA table_info(items)").all() as { name: string }[]).some(
+    (column) => column.name === "last_offered_at",
+  );
+  db.exec("PRAGMA foreign_keys = OFF");
+  try {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(`
+        CREATE TABLE items_with_belt_bag (
+          id              TEXT PRIMARY KEY,
+          user_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name            TEXT NOT NULL,
+          category        TEXT NOT NULL CHECK (category IN ('top', 'bottom', 'dress', 'shoes', 'outerwear', 'belt', 'bag', 'accessories')),
+          colour          TEXT NOT NULL,
+          image_path      TEXT NOT NULL,
+          mime_type       TEXT NOT NULL,
+          created_at      INTEGER NOT NULL,
+          last_offered_at INTEGER
+        )
+      `);
+      db.exec(`
+        INSERT INTO items_with_belt_bag (id, user_id, name, category, colour, image_path, mime_type, created_at, last_offered_at)
+        SELECT id, user_id, name, category, colour, image_path, mime_type, created_at, ${hasOffered ? "last_offered_at" : "NULL"}
+        FROM items
+      `);
+      db.exec("DROP TABLE items");
+      db.exec("ALTER TABLE items_with_belt_bag RENAME TO items");
+      db.exec("CREATE INDEX IF NOT EXISTS items_user ON items (user_id, created_at DESC)");
+      db.exec("COMMIT");
+    } catch (err) {
+      db.exec("ROLLBACK");
+      throw err;
+    }
+  } finally {
+    db.exec("PRAGMA foreign_keys = ON");
+  }
+}
+
 /** Looks gained a nullable `occasion` column after the first release; plain ADD COLUMN is enough (no CHECK). */
 function migrateLookOccasion(db: DatabaseSync): void {
   const columns = db.prepare("PRAGMA table_info(looks)").all() as { name: string }[];
@@ -180,6 +229,7 @@ export function getDb(): DatabaseSync {
     db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
     db.exec(SCHEMA);
     migrateAccessoriesCategory(db);
+    migrateBeltBagCategories(db);
     migrateLookOccasion(db);
     migrateLookCollection(db);
     migrateLookAnchor(db);

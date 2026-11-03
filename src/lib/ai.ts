@@ -167,7 +167,8 @@ const TAG_PROMPT = `You catalogue clothing for a personal wardrobe app.
 Look at the photo and identify the single main clothing item or accessory.
 Respond with ONLY a JSON object of this exact shape: {"name": string, "category": string, "colour": string}.
 - category must be exactly one of: ${CATEGORIES.join(", ")} (jackets, coats, blazers and cardigans are outerwear;
-  jewellery, watches, bags, belts, hats, scarves and sunglasses are accessories).
+  belts are belt; handbags, purses, totes and backpacks are bag; jewellery, watches, hats, scarves and sunglasses
+  are accessories).
 - colour is the dominant colour as a shopper would say it, in 1-2 lowercase words, e.g. "pink" or "blue and white".
 - name is a short, specific product-style name, 2-4 words, e.g. "Striped wide-leg trousers".`;
 
@@ -204,10 +205,12 @@ const STYLIST_PROMPT = `You are a warm, precise personal stylist. Suggest 3 outf
 Rules:
 - Only use items that exist in this wardrobe, referenced by their exact id.
 - An outfit is either (one top + one bottom) or (one dress). Never combine a dress with a top or a bottom.
+- Every outfit MUST include exactly one belt and exactly one bag (items whose category is belt or bag). This is
+  required, never optional.
 - Every outfit should be a complete look, not just the base: whenever the wardrobe has shoes, add one pair; add one
-  outerwear piece when the occasion or weather suits it; and add accessories (jewellery, a watch, a bag, a belt, a
-  hat, sunglasses) wherever they genuinely complete the outfit. Only leave a layer out when the wardrobe has no
-  suitable piece for it, and never invent an occasion to force an item in.
+  outerwear piece when the occasion or weather suits it; and add accessories (jewellery, a watch, a hat,
+  sunglasses) wherever they genuinely complete the outfit. Only leave an optional layer out when the wardrobe has
+  no suitable piece for it, and never invent an occasion to force an item in.
 - Consider colour harmony and how formal each piece is, so every outfit suits one occasion.
 - Make the 3 outfits clearly different from each other. If the wardrobe only allows fewer, return fewer.
 - For each outfit give a short title and a short, specific reason that mentions the actual colours and items.

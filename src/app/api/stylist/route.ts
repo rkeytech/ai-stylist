@@ -4,7 +4,7 @@ import { assertSameOrigin, handle, HttpError, readJson, requireUser } from "@/li
 import { COLLECTION_NOT_FOUND } from "@/lib/collections";
 import { withImages } from "@/lib/item-images";
 import { cleanText, describePiece, MAX_OCCASION_LENGTH } from "@/lib/wardrobe";
-import { canStyle, canStyleAround, MAX_STYLIST_ITEMS, missingAround, pickStylingPool } from "@/lib/outfits";
+import { MAX_STYLIST_ITEMS, missingPieces, pickStylingPool } from "@/lib/outfits";
 import {
   getCollection,
   getItem,
@@ -62,21 +62,21 @@ export const POST = handle(async (request: Request) => {
   const base = collection ? listCollectionItems(user.id, collection.id) : listItems(user.id);
   const rows = anchor && !base.some((row) => row.id === anchor.id) ? [anchor, ...base] : base;
 
-  if (anchor) {
-    if (!canStyleAround(rows, anchor)) {
+  const missing = missingPieces(rows, anchor);
+  if (missing) {
+    if (anchor) {
       const piece = describePiece(anchor).toLowerCase();
       throw new HttpError(
         collection
-          ? `“${collection.name}” needs ${missingAround(anchor)} to style around your ${piece}.`
-          : `Add ${missingAround(anchor)} to your wardrobe to style around your ${piece}.`,
+          ? `“${collection.name}” needs ${missing} to style around your ${piece}.`
+          : `Add ${missing} to your wardrobe to style around your ${piece}.`,
         422,
       );
     }
-  } else if (!canStyle(rows)) {
     throw new HttpError(
       collection
-        ? `“${collection.name}” needs at least a top and a bottom, or a dress, before the stylist can work with it.`
-        : "Add at least a top and a bottom, or a dress, so the stylist has something to work with.",
+        ? `“${collection.name}” needs ${missing} before the stylist can work with it.`
+        : `Add ${missing} so the stylist has something to work with.`,
       422,
     );
   }

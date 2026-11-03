@@ -102,6 +102,8 @@ const pieces = [
   ["Tan espadrilles", [200, 170, 120], "shoes", "tan"],
   ["Beige utility jacket", [220, 205, 170], "outerwear", "beige"],
   ["Gold hoop earrings", [210, 180, 60], "accessories", "gold"],
+  ["Brown leather belt", [120, 80, 50], "belt", "brown"],
+  ["Black leather handbag", [30, 30, 30], "bag", "black"],
 ];
 const items = {};
 for (const [name, rgb, category, colour] of pieces) {
@@ -118,7 +120,7 @@ check("non-image disguised as PNG is rejected", (await alice.call("/api/items", 
 check("upload without a photo is rejected", (await alice.call("/api/items", { method: "POST", form: new FormData() })).status === 400);
 
 const list = await alice.call("/api/items");
-check("wardrobe lists all 7 pieces, newest first", list.data.items?.length === 7 && list.data.items[0].name === "Mystery piece", list.data);
+check("wardrobe lists all 9 pieces, newest first", list.data.items?.length === 9 && list.data.items[0].name === "Mystery piece", list.data);
 
 // --- editing items ---
 const coloursBefore = await alice.call("/api/colours");
@@ -153,6 +155,11 @@ check("another user can't load someone else's photo", (await bob.call(items.top.
 check("another user can't delete someone else's item", (await bob.call(`/api/items/${items.top.id}`, { method: "DELETE" })).status === 404);
 check("another user can't edit someone else's item", (await bob.call(`/api/items/${items.top.id}`, { method: "PATCH", json: { name: "Nope", category: "top", colour: "blue" } })).status === 404);
 check("stylist needs a top+bottom or a dress", (await bob.call("/api/stylist", { method: "POST" })).status === 422);
+for (const name of ["Bob white tee", "Bob blue jeans"]) {
+  await bob.call("/api/items", { method: "POST", form: upload(png(32, 32, [200, 200, 200]), { name, category: "auto", colour: "" }) });
+}
+const bobNoExtras = await bob.call("/api/stylist", { method: "POST" });
+check("stylist also needs a belt and a bag", bobNoExtras.status === 422 && /belt and a bag/.test(bobNoExtras.data.error ?? bobNoExtras.data.message ?? ""), bobNoExtras.data);
 
 // --- stylist ---
 const styled = await alice.call("/api/stylist", { method: "POST" });
@@ -171,6 +178,8 @@ for (const look of looks) {
     categories.every(Boolean) &&
     count("shoes") <= 1 &&
     count("outerwear") <= 1 &&
+    count("belt") === 1 &&
+    count("bag") === 1 &&
     ((count("dress") === 1 && count("top") === 0 && count("bottom") === 0) ||
       (count("dress") === 0 && count("top") === 1 && count("bottom") === 1));
   check(`look "${look.title}" follows the outfit rules and has a reason`, valid && look.reason.length > 10, categories);
@@ -191,13 +200,13 @@ check("collection names must be unique (ignoring case)", (await alice.call("/api
 check("a collection needs a name", (await alice.call("/api/collections", { method: "POST", json: { name: "   " } })).status === 400);
 check("cross-site collection create is blocked", (await alice.call("/api/collections", { method: "POST", json: { name: "Evil" }, origin: "https://evil.example" })).status === 403);
 const workUrl = `/api/collections/${work.data.collection.id}`;
-const workIds = [items.top.id, items.bottom.id, items.shoes.id];
+const workIds = [items.top.id, items.bottom.id, items.shoes.id, items.belt.id, items.bag.id];
 const filled = await alice.call(`${workUrl}/items`, { method: "PUT", json: { itemIds: [...workIds, items.top.id] } });
-check("owner can set a collection's pieces (duplicates ignored)", filled.status === 200 && filled.data.collection.itemIds.length === 3 && workIds.every((id) => filled.data.collection.itemIds.includes(id)), filled.data);
+check("owner can set a collection's pieces (duplicates ignored)", filled.status === 200 && filled.data.collection.itemIds.length === 5 && workIds.every((id) => filled.data.collection.itemIds.includes(id)), filled.data);
 check("collection membership must be a list of ids", (await alice.call(`${workUrl}/items`, { method: "PUT", json: { itemIds: "nope" } })).status === 400);
 const renamed = await alice.call(workUrl, { method: "PATCH", json: { name: "Office" } });
 check("owner can rename a collection", renamed.status === 200 && renamed.data.collection.name === "Office", renamed.data);
-check("collections are listed for their owner", (await alice.call("/api/collections")).data.collections?.some((c) => c.id === work.data.collection.id && c.itemIds.length === 3));
+check("collections are listed for their owner", (await alice.call("/api/collections")).data.collections?.some((c) => c.id === work.data.collection.id && c.itemIds.length === 5));
 
 const collectionRun = await alice.call("/api/stylist", { method: "POST", json: { occasion: "Work", collectionId: work.data.collection.id } });
 check(
@@ -296,7 +305,7 @@ check("looks using a deleted item are removed", remaining.every((look) => !look.
 check("deleted item's photo is gone", (await alice.call(items.outerwear.imageUrl)).status === 404);
 check("owner can delete an item that sits in a collection", (await alice.call(`/api/items/${items.shoes.id}`, { method: "DELETE" })).status === 200);
 const afterDelete = await alice.call(workUrl);
-check("deleting an item drops it from its collections", afterDelete.data.collection?.itemIds.length === 2 && !afterDelete.data.collection.itemIds.includes(items.shoes.id), afterDelete.data);
+check("deleting an item drops it from its collections", afterDelete.data.collection?.itemIds.length === 4 && !afterDelete.data.collection.itemIds.includes(items.shoes.id), afterDelete.data);
 check("owner can delete a saved try-on", (await alice.call(`/api/try-on/${first.data.tryOn.id}`, { method: "DELETE" })).status === 200 && (await alice.call("/api/try-on")).data.tryOns.length === 0);
 
 // --- pages & sign out ---

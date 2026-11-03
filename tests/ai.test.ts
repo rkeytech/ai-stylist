@@ -126,12 +126,21 @@ describe("mock mode", () => {
     });
   });
 
+  it("tags belts and bags from their name", async () => {
+    process.env.AI_MOCK = "true";
+    expect(await tagItem(image, "Brown leather belt")).toMatchObject({ category: "belt" });
+    expect(await tagItem(image, "Black leather handbag")).toMatchObject({ category: "bag" });
+    expect(await tagItem(image, "Canvas tote")).toMatchObject({ category: "bag" });
+  });
+
   it("suggests valid looks and echoes the photo for try-on", async () => {
     process.env.AI_MOCK = "true";
     const items: ItemWithImage[] = [
       { id: "t", name: "Tee", category: "top", colour: "white", image },
       { id: "b", name: "Jeans", category: "bottom", colour: "blue", image },
       { id: "d", name: "Dress", category: "dress", colour: "red", image },
+      { id: "k", name: "Belt", category: "belt", colour: "black", image },
+      { id: "g", name: "Tote bag", category: "bag", colour: "tan", image },
     ];
     const byId = new Map(items.map((item) => [item.id, item]));
 
@@ -142,6 +151,8 @@ describe("mock mode", () => {
     const around = await suggestLooks(items, { anchorId: "t" });
     expect(around.length).toBeGreaterThan(0);
     for (const look of around) expect(look.itemIds).toContain("t");
+
+    for (const look of looks) expect(look.itemIds).toEqual(expect.arrayContaining(["k", "g"]));
 
     const result = await generateTryOn(image, items.slice(0, 2), "4:3");
     expect(result.mimeType).toBe("image/png");

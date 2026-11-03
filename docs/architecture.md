@@ -74,12 +74,14 @@ stylist link.
 
 ## Outfit rules (`src/lib/outfits.ts`)
 
-An outfit is **(one top + one bottom) or (one dress)**, plus optionally one shoes, one outerwear, and any number of
-accessories. A dress never combines with a top or bottom. Enforced when sanitizing AI output and in `canStyle()`
-(gates "Style me"). This file — not the prompt — is the authority on what a valid look is.
+An outfit is **(one top + one bottom) or (one dress)**, plus **exactly one belt and one bag (required)**, and optionally
+one shoes, one outerwear, and any number of accessories. A dress never combines with a top or bottom. Enforced when
+sanitizing AI output (a look missing its belt or bag is dropped) and in `missingPieces()` / `canStyle()` /
+`canStyleAround()`, which gate "Style me": a pool without a belt and a bag gets a 422 naming what's missing, and
+mock mode returns no looks. This file — not the prompt — is the authority on what a valid look is.
 
-Extras are optional for validity, but the stylist prompt asks for complete looks (shoes when available, outerwear
-when it suits, accessories where they help). Only `MAX_STYLIST_ITEMS` (40) pieces go to the model. The route picks
+Shoes, outerwear and accessories are optional for validity, but the stylist prompt asks for complete looks (shoes
+when available, outerwear when it suits, accessories where they help) and states the belt + bag requirement. Only `MAX_STYLIST_ITEMS` (40) pieces go to the model. The route picks
 them with `pickStylingPool()`: the anchor always, the other slots split across categories in proportion to their
 size (at least one each), and within a category the **least recently offered** first (`items.last_offered_at`,
 NULL = never; random tie-break). After a successful request `markOffered()` stamps the pool, so every piece of a
@@ -87,9 +89,11 @@ big wardrobe is offered within ~N/40 requests. Only the picked pieces' photos ar
 
 ## Categories and colours (`wardrobe.ts`, `db.ts`)
 
-`CATEGORIES` (`top`, `bottom`, `dress`, `shoes`, `outerwear`, `accessories`) is closed: it's in the `items.category`
-CHECK constraint and the outfit rules. Widening it needs an in-place table-rebuild migration (see
-`migrateAccessoriesCategory()`), since SQLite can't alter a CHECK. Colours are open: the `colours` table is seeded
+`CATEGORIES` (`top`, `bottom`, `dress`, `shoes`, `outerwear`, `belt`, `bag`, `accessories`) is closed: it's in the
+`items.category` CHECK constraint and the outfit rules. `outerwear` is jackets/coats/blazers/cardigans; bags and
+belts have their own categories (keyword guessing in `wardrobe.ts` and the tagging prompt route them there).
+Widening it needs an in-place table-rebuild migration (see `migrateBeltBagCategories()`, which rebuilds with foreign
+keys off so `collection_items` rows survive and keeps `last_offered_at`), since SQLite can't alter a CHECK. Colours are open: the `colours` table is seeded
 from `COLOUR_WORDS`, and every upload/edit calls `repo.addColour()`; `GET /api/colours` feeds the dropdowns.
 
 ## Theming and dark mode (`globals.css`, `ThemeToggle.tsx`)

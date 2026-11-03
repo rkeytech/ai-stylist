@@ -46,6 +46,8 @@ export function WardrobeView({
       dress: 0,
       shoes: 0,
       outerwear: 0,
+      belt: 0,
+      bag: 0,
       accessories: 0,
     };
     for (const item of items) result[item.category]++;

@@ -1,4 +1,4 @@
-export const CATEGORIES = ["top", "bottom", "dress", "shoes", "outerwear", "accessories"] as const;
+export const CATEGORIES = ["top", "bottom", "dress", "shoes", "outerwear", "belt", "bag", "accessories"] as const;
 export type Category = (typeof CATEGORIES)[number];
 
 export const CATEGORY_LABELS: Record<Category, string> = {
@@ -7,6 +7,8 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   dress: "Dress",
   shoes: "Shoes",
   outerwear: "Outerwear",
+  belt: "Belt",
+  bag: "Bag",
   accessories: "Accessories",
 };
 
@@ -16,8 +18,10 @@ export const CATEGORY_ORDER: Record<Category, number> = {
   top: 1,
   dress: 2,
   bottom: 3,
-  shoes: 4,
-  accessories: 5,
+  belt: 4,
+  shoes: 5,
+  bag: 6,
+  accessories: 7,
 };
 
 export function isCategory(value: unknown): value is Category {
@@ -77,9 +81,11 @@ const CATEGORY_KEYWORDS: [Category, RegExp][] = [
   ["shoes", /\b(shoes?|heels?|sneakers?|trainers?|boots?|sandals?|loafers?|flats|espadrilles?|pumps|mules?)\b/i],
   ["bottom", /\b(trousers|pants|jeans|skirt|shorts|leggings|chinos|joggers|culottes)\b/i],
   ["top", /\b(shirt|t-?shirt|tee|top|blouse|sweater|jumper|hoodie|tank|polo|knit|sweatshirt|camisole|bodysuit)\b/i],
+  ["belt", /\b(belts?)\b/i],
+  ["bag", /\b(handbags?|bags?|purses?|totes?|clutch(?:es)?|backpacks?|satchels?)\b/i],
   [
     "accessories",
-    /\b(earrings?|necklaces?|bracelets?|watch(?:es)?|sunglasses|glasses|scarves?|scarf|belts?|hats?|caps?|handbags?|bags?|purses?|tie|ties|jewell?ery)\b/i,
+    /\b(earrings?|necklaces?|bracelets?|watch(?:es)?|sunglasses|glasses|scarves?|scarf|hats?|caps?|tie|ties|jewell?ery)\b/i,
   ],
 ];
 

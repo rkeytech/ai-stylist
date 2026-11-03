@@ -4,7 +4,7 @@ import Link from "next/link";
 import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import type { AiMode } from "@/lib/ai";
 import { apiFetch, errorMessage } from "@/lib/api-client";
-import { canStyle, canStyleAround, MAX_LOOKS, missingAround } from "@/lib/outfits";
+import { MAX_LOOKS, missingPieces } from "@/lib/outfits";
 import {
   CATEGORY_LABELS,
   describePiece,
@@ -60,7 +60,8 @@ export function StylistView({
     const base = collection ? collection.itemIds.flatMap((id) => itemsById.get(id) ?? []) : items;
     return anchor && !base.includes(anchor) ? [anchor, ...base] : base;
   }, [anchor, collection, items, itemsById]);
-  const ready = anchor ? canStyleAround(pool, anchor) : canStyle(pool);
+  const missing = missingPieces(pool, anchor);
+  const ready = missing === "";
   const batchAnchor = (looks[0]?.anchorItemId && itemsById.get(looks[0].anchorItemId)) || null;
   const summary = [anchor?.name, collection?.name ?? "Whole Atelier", occasion.trim() || null]
     .filter(Boolean)
@@ -91,7 +92,7 @@ export function StylistView({
   const notReady =
     ready ? null : anchor ? (
       <p className="text-sm leading-relaxed text-muted">
-        {collection ? <>&ldquo;{collection.name}&rdquo; needs</> : "Your Atelier needs"} {missingAround(anchor)} to
+        {collection ? <>&ldquo;{collection.name}&rdquo; needs</> : "Your Atelier needs"} {missing} to
         go with your {describePiece(anchor).toLowerCase()}.{" "}
         <Link
           href={collection ? `/collections/${collection.id}` : "/wardrobe"}
@@ -112,7 +113,7 @@ export function StylistView({
       </p>
     ) : collection ? (
       <p className="text-sm leading-relaxed text-muted">
-        &ldquo;{collection.name}&rdquo; needs at least a top and a bottom, or a dress.{" "}
+        &ldquo;{collection.name}&rdquo; needs {missing}.{" "}
         <Link href={`/collections/${collection.id}`} className="text-ink underline underline-offset-4">
           Add pieces to it
         </Link>{" "}
@@ -124,7 +125,7 @@ export function StylistView({
       </p>
     ) : (
       <p className="text-sm leading-relaxed text-muted">
-        Add at least a top and a bottom, or a dress, to your{" "}
+        Add {missing} to your{" "}
         <Link href="/wardrobe" className="text-ink underline underline-offset-4">
           Atelier
         </Link>{" "}

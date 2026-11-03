@@ -69,6 +69,14 @@ Status markers used below: `[x]` done and shipped, `[~]` in progress, `[ ]` not 
       anchor first, slots split proportionally across categories, least-recently-offered first within each
       (`items.last_offered_at`, added by `migrateItemLastOffered()`; `markOffered()` stamps the pool after a
       successful request). Every piece is offered within ~N/40 requests; only picked photos are read from disk.
+- [x] Belt + bag categories (replaces the dropped "overcoat" idea) — `belt` and `bag` join `CATEGORIES`
+      (`migrateBeltBagCategories()` rebuilds the `items` table). `outerwear` keeps meaning jackets/coats; `accessories`
+      keeps jewellery/watches/hats/scarves. **Every look must contain exactly one belt and one bag**: enforced in
+      `checkOutfit()` (so `sanitizeLooks()` drops looks without them), stated as required in the stylist prompt, and
+      gating `canStyle()`/`canStyleAround()` via `missingPieces()` (422 + UI hint when the pool lacks a belt or bag;
+      mock mode returns no looks). Keyword guessing and the tagging prompt send belts/bags to their new categories.
+      Existing items are not re-tagged — any bags/belts previously saved as outerwear or accessories must be edited
+      to the new category by hand.
 - [x] Rebrand: "Styled" → "Atelier" — README, page titles/nav, `AuthForm.tsx` copy, OpenRouter `X-Title`; landed in the "changed to openrouter" commits (verified 2026-10-23: clean tree, typecheck + unit tests pass)
 
 - [x] Rebrand + copy cleanup:
@@ -116,21 +124,6 @@ Status markers used below: `[x]` done and shipped, `[~]` in progress, `[ ]` not 
   - [ ] Companion Flutter Android app
   - Note: `docs/mobile-plan.md` predates the OpenRouter migration and still references Gemini model names in
     places — treat its AI-provider specifics as stale, its API/auth/architecture plan as current.
-- [ ] **Overcoat** clothing category — a new seventh category for jackets, blazers, coats, etc., worn over a top
-      or a dress. Decided:
-  - `outerwear` stays as a separate category, now meaning **bags, scarves and similar**; `accessories` means
-    jewellery-type pieces (earrings, rings, necklaces, etc.). This matches how the user already tags items.
-  - Outfit rules (`outfits.ts`): at most **one overcoat** per look; a look may have both an overcoat and outerwear.
-    Outerwear becomes **uncapped** like accessories (e.g. a bag and a scarf in one look) — drop its one-per-look
-    limit in `outfits.ts`/`sanitizeLooks()`; shoes and overcoat stay capped at one.
-  - No data migration of existing items needed: the user's `outerwear` items today are only two bags.
-  - Implementation: widen the `items.category` CHECK constraint with another table-rebuild migration (like
-    `migrateAccessoriesCategory()` in `db.ts`); add `overcoat` to `CATEGORIES`; update keyword guessing in
-    `wardrobe.ts` (jacket/blazer/coat → overcoat; **move** bag/handbag/purse/scarf out of the accessories regex
-    at `wardrobe.ts:82` into outerwear); rewrite the category definitions in the AI tagging + stylist prompts
-    (`ai.ts:170` and `:208` currently call bags and scarves accessories); update `mockLooks()`, `canStyle()`,
-    UI category labels, the outfit-rule description in `CLAUDE.md`, and tests.
-
 ## Ideas / needs discussion
 
 - Fair *selection* into looks (not just into the request): if the model keeps favouring the same pieces out of each

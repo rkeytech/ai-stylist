@@ -19,41 +19,46 @@ function hasCategory(items: Pick<StylableItem, "category">[], category: Category
   return items.some((item) => item.category === category);
 }
 
-/** A wardrobe can be styled once it holds a dress, or a top and a bottom. */
-export function canStyle(items: Pick<StylableItem, "category">[]): boolean {
-  return (
-    hasCategory(items, "dress") || (hasCategory(items, "top") && hasCategory(items, "bottom"))
-  );
+/**
+ * What a pool lacks before a valid look can be built, phrased for messages ("a bottom, plus a belt and a bag"),
+ * or "" when it can be styled. With an anchor (which must be in `items`): a top needs a bottom, a bottom needs
+ * a top, a dress always works, and any other piece just needs the pool to hold a base. Every look also needs
+ * a belt and a bag.
+ */
+export function missingPieces(
+  items: Pick<StylableItem, "category">[],
+  anchor?: Pick<StylableItem, "category"> | null,
+): string {
+  const has = (category: Category) => hasCategory(items, category);
+  let base = "";
+  if (anchor?.category === "top") base = has("bottom") ? "" : "a bottom";
+  else if (anchor?.category === "bottom") base = has("top") ? "" : "a top";
+  else if (anchor?.category !== "dress" && !has("dress") && !(has("top") && has("bottom"))) {
+    base = "a top and a bottom, or a dress";
+  }
+  const extras = [has("belt") ? "" : "a belt", has("bag") ? "" : "a bag"].filter(Boolean).join(" and ");
+  return [base, extras && (base ? `plus ${extras}` : extras)].filter(Boolean).join(", ");
 }
 
-/** The categories an outfit is built on; everything else (shoes, outerwear, accessories) is an extra. */
+/** A wardrobe can be styled once it holds a dress, or a top and a bottom, plus a belt and a bag. */
+export function canStyle(items: Pick<StylableItem, "category">[]): boolean {
+  return missingPieces(items) === "";
+}
+
+/** The categories an outfit is built on; everything else (shoes, outerwear, belt, bag, accessories) is an extra. */
 const isBaseCategory = (category: Category) => category === "top" || category === "bottom" || category === "dress";
 
-/**
- * Whether at least one valid outfit containing `anchor` can be built from `items` (which include the
- * anchor): a top needs a bottom, a bottom needs a top, a dress always works, and an extra just needs
- * the pool to be stylable at all.
- */
+/** Whether at least one valid outfit containing `anchor` can be built from `items` (which include the anchor). */
 export function canStyleAround(
   items: Pick<StylableItem, "category">[],
   anchor: Pick<StylableItem, "category">,
 ): boolean {
-  if (anchor.category === "dress") return true;
-  if (anchor.category === "top") return hasCategory(items, "bottom");
-  if (anchor.category === "bottom") return hasCategory(items, "top");
-  return canStyle(items);
-}
-
-/** What a pool lacks when canStyleAround() fails, phrased for messages ("Add a bottom..."). */
-export function missingAround(anchor: Pick<StylableItem, "category">): string {
-  if (anchor.category === "top") return "a bottom";
-  if (anchor.category === "bottom") return "a top";
-  return "a top and a bottom, or a dress";
+  return missingPieces(items, anchor) === "";
 }
 
 /**
  * Checks the outfit rules from the stylist brief:
- * (top + bottom) or (dress), plus optional shoes, outerwear and accessories,
+ * (top + bottom) or (dress), plus exactly one belt and one bag, optional shoes, outerwear and accessories,
  * never a dress with a bottom, and only items the user owns.
  * Returns a reason string when invalid, or null when the outfit is valid.
  */
@@ -61,7 +66,9 @@ export function checkOutfit(itemIds: string[], byId: Map<string, StylableItem>):
   if (itemIds.length === 0) return "empty outfit";
   if (new Set(itemIds).size !== itemIds.length) return "duplicate item";
 
-  const counts: Record<Category, number> = { top: 0, bottom: 0, dress: 0, shoes: 0, outerwear: 0, accessories: 0 };
+  const counts: Record<Category, number> = {
+    top: 0, bottom: 0, dress: 0, shoes: 0, outerwear: 0, belt: 0, bag: 0, accessories: 0,
+  };
   for (const id of itemIds) {
     const item = byId.get(id);
     if (!item) return `unknown item ${id}`;
@@ -69,6 +76,7 @@ export function checkOutfit(itemIds: string[], byId: Map<string, StylableItem>):
   }
 
   if (counts.shoes > 1 || counts.outerwear > 1) return "more than one pair of shoes or outerwear";
+  if (counts.belt !== 1 || counts.bag !== 1) return "needs exactly one belt and one bag";
   if (counts.dress > 0) {
     if (counts.dress > 1) return "more than one dress";
     if (counts.bottom > 0 || counts.top > 0) return "a dress can't be combined with a top or bottom";
@@ -198,7 +206,7 @@ const MOCK_TITLES = ["Easy Weekend Edit", "City Day Uniform", "Golden Hour Ease"
 
 /**
  * Deterministic, rule-following suggestions used when AI_MOCK=true. With an anchor, a top/bottom/dress
- * anchor keeps only the combinations containing it; a shoes/outerwear/accessory anchor replaces the
+ * anchor keeps only the combinations containing it; a shoes/outerwear/belt/bag/accessory anchor replaces the
  * round-robin pick for its category, so it lands in every look.
  */
 export function mockLooks(items: StylableItem[], { anchorId }: LookOptions = {}): LookDraft[] {
@@ -207,8 +215,8 @@ export function mockLooks(items: StylableItem[], { anchorId }: LookOptions = {})
     anchor?.category === category && !isBaseCategory(category)
       ? [anchor]
       : items.filter((item) => item.category === category);
-  const [tops, bottoms, dresses, shoes, outerwear, accessories] = [
-    of("top"), of("bottom"), of("dress"), of("shoes"), of("outerwear"), of("accessories"),
+  const [tops, bottoms, dresses, shoes, outerwear, belts, bags, accessories] = [
+    of("top"), of("bottom"), of("dress"), of("shoes"), of("outerwear"), of("belt"), of("bag"), of("accessories"),
   ];
 
   const bases: StylableItem[][] = [
@@ -221,13 +229,15 @@ export function mockLooks(items: StylableItem[], { anchorId }: LookOptions = {})
   const score = (base: StylableItem[]) => base.reduce((sum, item) => sum + (usage.get(item.id) ?? 0), 0);
 
   const looks: LookDraft[] = [];
-  while (looks.length < MAX_LOOKS && bases.length > 0) {
+  // Belt and bag are required in every look, so there is nothing to suggest without both.
+  while (looks.length < MAX_LOOKS && bases.length > 0 && belts.length > 0 && bags.length > 0) {
     // Prefer the combination that reuses the fewest pieces already shown.
     bases.sort((a, b) => score(a) - score(b));
     const base = bases.shift()!;
     const n = looks.length;
     const pieces = [...base];
     if (outerwear.length) pieces.push(outerwear[n % outerwear.length]);
+    pieces.push(belts[n % belts.length], bags[n % bags.length]);
     if (shoes.length) pieces.push(shoes[n % shoes.length]);
     if (accessories.length) pieces.push(accessories[n % accessories.length]);
     pieces.forEach((item) => usage.set(item.id, (usage.get(item.id) ?? 0) + 1));

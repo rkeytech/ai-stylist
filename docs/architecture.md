@@ -78,6 +78,13 @@ An outfit is **(one top + one bottom) or (one dress)**, plus optionally one shoe
 accessories. A dress never combines with a top or bottom. Enforced when sanitizing AI output and in `canStyle()`
 (gates "Style me"). This file — not the prompt — is the authority on what a valid look is.
 
+Extras are optional for validity, but the stylist prompt asks for complete looks (shoes when available, outerwear
+when it suits, accessories where they help). Only `MAX_STYLIST_ITEMS` (40) pieces go to the model. The route picks
+them with `pickStylingPool()`: the anchor always, the other slots split across categories in proportion to their
+size (at least one each), and within a category the **least recently offered** first (`items.last_offered_at`,
+NULL = never; random tie-break). After a successful request `markOffered()` stamps the pool, so every piece of a
+big wardrobe is offered within ~N/40 requests. Only the picked pieces' photos are loaded from disk.
+
 ## Categories and colours (`wardrobe.ts`, `db.ts`)
 
 `CATEGORIES` (`top`, `bottom`, `dress`, `shoes`, `outerwear`, `accessories`) is closed: it's in the `items.category`

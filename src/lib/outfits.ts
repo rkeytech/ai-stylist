@@ -78,6 +78,70 @@ export function checkOutfit(itemIds: string[], byId: Map<string, StylableItem>):
   return null;
 }
 
+/** How many pieces (photos) one stylist request carries. */
+export const MAX_STYLIST_ITEMS = 40;
+
+type Rotatable = StylableItem & { last_offered_at: number | null };
+
+/** Splits `slots` across categories in proportion to their sizes, at least one each, never more than they hold. */
+function categoryQuotas(sizes: Map<Category, number>, slots: number): Map<Category, number> {
+  const total = [...sizes.values()].reduce((sum, n) => sum + n, 0);
+  const ideal = new Map([...sizes].map(([category, n]) => [category, (slots * n) / total]));
+  const quota = new Map(
+    [...sizes].map(([category, n]) => [category, Math.min(n, Math.max(1, Math.floor(ideal.get(category)!)))]),
+  );
+  const sum = () => [...quota.values()].reduce((s, n) => s + n, 0);
+  const gap = (category: Category) => ideal.get(category)! - quota.get(category)!;
+
+  while (sum() < slots) {
+    const open = [...quota.keys()].filter((c) => quota.get(c)! < sizes.get(c)!);
+    if (open.length === 0) break;
+    const next = open.reduce((best, c) => (gap(c) > gap(best) ? c : best));
+    quota.set(next, quota.get(next)! + 1);
+  }
+  while (sum() > slots) {
+    const shrinkable = [...quota.keys()].filter((c) => quota.get(c)! > 1);
+    if (shrinkable.length === 0) break;
+    const next = shrinkable.reduce((best, c) => (gap(c) < gap(best) ? c : best));
+    quota.set(next, quota.get(next)! - 1);
+  }
+  return quota;
+}
+
+/**
+ * Chooses the (at most `max`) pieces the stylist sees, so every piece gets a turn: the anchor always goes in,
+ * the other slots are split across categories in proportion to their size (no category is starved), and
+ * within a category the pieces offered least recently - never-offered first, ties broken randomly - win.
+ * Callers record the result with markOffered(), so a wardrobe of N pieces is fully covered every ~N/max requests.
+ */
+export function pickStylingPool<T extends Rotatable>(
+  items: T[],
+  max: number,
+  anchorId?: string | null,
+  random: () => number = Math.random,
+): T[] {
+  const anchor = anchorId ? items.find((item) => item.id === anchorId) : undefined;
+  const rest = items.filter((item) => item !== anchor);
+  const slots = max - (anchor ? 1 : 0);
+  if (rest.length <= slots) return anchor ? [anchor, ...rest] : rest;
+
+  const groups = new Map<Category, T[]>();
+  for (const item of rest) groups.set(item.category, [...(groups.get(item.category) ?? []), item]);
+  const quotas = categoryQuotas(new Map([...groups].map(([category, group]) => [category, group.length])), slots);
+
+  const picked: T[] = anchor ? [anchor] : [];
+  for (const [category, group] of groups) {
+    const shuffled = [...group];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    shuffled.sort((x, y) => (x.last_offered_at ?? -Infinity) - (y.last_offered_at ?? -Infinity));
+    picked.push(...shuffled.slice(0, quotas.get(category)));
+  }
+  return picked;
+}
+
 export function orderItemIds(itemIds: string[], byId: Map<string, StylableItem>): string[] {
   return [...itemIds].sort(
     (a, b) => CATEGORY_ORDER[byId.get(a)!.category] - CATEGORY_ORDER[byId.get(b)!.category],

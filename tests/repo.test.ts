@@ -25,6 +25,7 @@ import {
   listItems,
   listLooks,
   listTryOns,
+  markOffered,
   markTryOnSaved,
   renameCollection,
   replaceLooks,
@@ -76,6 +77,20 @@ describe("users and sessions", () => {
     expect(findSessionUser("old-token", Date.now() + 1_000)).toBeUndefined();
     deleteSession("live-token");
     expect(findSessionUser("live-token")).toBeUndefined();
+  });
+});
+
+describe("markOffered", () => {
+  it("stamps only the caller's own items", () => {
+    const carol = createUser("carol@example.com", "hash");
+    const dave = createUser("dave@example.com", "hash");
+    addItem(carol.id, "carol-top", "top");
+    addItem(dave.id, "dave-top", "top");
+    expect(getItem(carol.id, "carol-top")?.last_offered_at).toBeNull();
+
+    markOffered(carol.id, ["carol-top", "dave-top"], 1234);
+    expect(getItem(carol.id, "carol-top")?.last_offered_at).toBe(1234);
+    expect(getItem(dave.id, "dave-top")?.last_offered_at).toBeNull();
   });
 });
 

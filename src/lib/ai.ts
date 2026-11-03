@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import { sniffImageMime, type ImageMime } from "./image-mime";
-import { mockLooks, sanitizeLooks, type LookDraft, type StylableItem } from "./outfits";
+import { MAX_STYLIST_ITEMS, mockLooks, sanitizeLooks, type LookDraft, type StylableItem } from "./outfits";
 import { CATEGORIES, cleanText, guessCategory, guessColour, isCategory, type Category } from "./wardrobe";
 
 export class AiError extends Error {
@@ -204,17 +204,16 @@ const STYLIST_PROMPT = `You are a warm, precise personal stylist. Suggest 3 outf
 Rules:
 - Only use items that exist in this wardrobe, referenced by their exact id.
 - An outfit is either (one top + one bottom) or (one dress). Never combine a dress with a top or a bottom.
-- Optionally add one pair of shoes and/or one outerwear piece to any outfit.
-- A full look often includes accessories (jewellery, a watch, a bag, a belt, a hat, sunglasses): add any number
-  of accessory pieces where they genuinely complete the outfit, but never invent an occasion to force one in.
+- Every outfit should be a complete look, not just the base: whenever the wardrobe has shoes, add one pair; add one
+  outerwear piece when the occasion or weather suits it; and add accessories (jewellery, a watch, a bag, a belt, a
+  hat, sunglasses) wherever they genuinely complete the outfit. Only leave a layer out when the wardrobe has no
+  suitable piece for it, and never invent an occasion to force an item in.
 - Consider colour harmony and how formal each piece is, so every outfit suits one occasion.
 - Make the 3 outfits clearly different from each other. If the wardrobe only allows fewer, return fewer.
 - For each outfit give a short title and a short, specific reason that mentions the actual colours and items.
 Respond with ONLY a JSON object of this exact shape:
 {"looks": [{"title": string, "itemIds": string[], "reason": string}]}
 The wardrobe items follow, each as a label line and then its photo.`;
-
-const MAX_STYLIST_ITEMS = 40;
 
 // The stylist only needs to judge colour/pattern/silhouette across the whole wardrobe at once, not
 // full photo detail, so every item's photo is shrunk to a small thumbnail before it goes into the
@@ -242,7 +241,7 @@ export async function suggestLooks(
   const { anchorId } = options;
   if (aiMode() === "mock") return mockLooks(items, { anchorId });
 
-  // The anchor goes first so the item cap can never cut it out of the request.
+  // The route already rotates a fair pool in (pickStylingPool); this is only a safety cap that keeps the anchor.
   const anchor = anchorId ? items.find((item) => item.id === anchorId) : undefined;
   const wardrobe = (anchor ? [anchor, ...items.filter((item) => item !== anchor)] : items).slice(0, MAX_STYLIST_ITEMS);
   const thumbnails = await Promise.all(wardrobe.map((item) => stylistThumbnail(item.image)));

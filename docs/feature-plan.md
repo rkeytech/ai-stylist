@@ -64,6 +64,11 @@ Status markers used below: `[x]` done and shipped, `[~]` in progress, `[ ]` not 
       native `<dialog>` showing the full look: title, occasion/collection/piece count, reason, and every piece
       (photo, name, category, the anchor marked "Styled around"), with Previous/Next look buttons. Closes on ×,
       Esc or a backdrop click. Client-only, no API change — cards still show at most 4 tiles with "+N".
+- [x] Complete looks + fair item rotation on big wardrobes — the stylist prompt now asks for shoes / outerwear /
+      accessories whenever available, and `pickStylingPool()` (`outfits.ts`) chooses the 40 pieces sent per request:
+      anchor first, slots split proportionally across categories, least-recently-offered first within each
+      (`items.last_offered_at`, added by `migrateItemLastOffered()`; `markOffered()` stamps the pool after a
+      successful request). Every piece is offered within ~N/40 requests; only picked photos are read from disk.
 - [x] Rebrand: "Styled" → "Atelier" — README, page titles/nav, `AuthForm.tsx` copy, OpenRouter `X-Title`; landed in the "changed to openrouter" commits (verified 2026-10-23: clean tree, typecheck + unit tests pass)
 
 - [x] Rebrand + copy cleanup:
@@ -128,4 +133,6 @@ Status markers used below: `[x]` done and shipped, `[~]` in progress, `[ ]` not 
 
 ## Ideas / needs discussion
 
-*(nothing queued yet — add items here when a feature is proposed but not yet scoped)*
+- Fair *selection* into looks (not just into the request): if the model keeps favouring the same pieces out of each
+  batch of 40, track a `picked_count` per item and weight the rotation by it. Skipped until offering every piece in
+  turn proves insufficient.

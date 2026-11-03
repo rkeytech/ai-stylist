@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   canStyle,
-  capForStyling,
   canStyleAround,
   checkOutfit,
   missingAround,
   mockLooks,
+  pickStylingPool,
   sanitizeLooks,
   type StylableItem,
 } from "@/lib/outfits";
@@ -173,28 +173,64 @@ describe("styling around one item", () => {
   });
 });
 
-describe("capForStyling", () => {
-  const many: StylableItem[] = [
-    ...Array.from({ length: 30 }, (_, i): StylableItem => ({ id: `t${i}`, name: `Top ${i}`, category: "top", colour: "blue" })),
-    ...Array.from({ length: 30 }, (_, i): StylableItem => ({ id: `b${i}`, name: `Bottom ${i}`, category: "bottom", colour: "black" })),
-    { id: "s1", name: "Boots", category: "shoes", colour: "brown" },
-    { id: "o1", name: "Coat", category: "outerwear", colour: "grey" },
-    { id: "a1", name: "Scarf", category: "accessories", colour: "red" },
-  ];
+describe("pickStylingPool", () => {
+  type Piece = StylableItem & { last_offered_at: number | null };
+  const piece = (id: string, category: Piece["category"], last: number | null = null): Piece => ({
+    id, name: id, category, colour: "blue", last_offered_at: last,
+  });
+  const many: Piece[] = [
+    ...Array.from({ length: 30 }, (_, i) => piece(`t${i}`, "top")),
+    ...Array.from({ length: 30 }, (_, i) => piece(`b${i}`, "bottom")),
+    ...Array.from({ length: 12 }, (_, i) => piece(`s${i}`, "shoes")),
+    ...Array.from({ length: 12 }, (_, i) => piece(`o${i}`, "outerwear")),
+    ...Array.from({ length: 6 }, (_, i) => piece(`a${i}`, "accessories")),
+    ...Array.from({ length: 3 }, (_, i) => piece(`d${i}`, "dress")),
+  ]; // 93 pieces
+  const ids = (pool: Piece[]) => pool.map((p) => p.id);
+  const count = (pool: Piece[], category: Piece["category"]) => pool.filter((p) => p.category === category).length;
 
-  it("keeps shoes, outerwear and accessories when the cap would otherwise cut them", () => {
-    const capped = capForStyling(many, 10);
-    expect(capped).toHaveLength(10);
-    for (const id of ["s1", "o1", "a1"]) expect(capped.map((i) => i.id)).toContain(id);
+  it("returns everything when under the cap, anchor first", () => {
+    expect(pickStylingPool(many.slice(0, 20), 40)).toHaveLength(20);
+    expect(pickStylingPool(many.slice(0, 20), 40, "t5")[0].id).toBe("t5");
   });
 
-  it("always keeps the anchor, first", () => {
-    const capped = capForStyling(many, 10, "b29");
-    expect(capped[0].id).toBe("b29");
-    expect(capped).toHaveLength(10);
+  it("fills the cap with a proportional share of every category", () => {
+    const pool = pickStylingPool(many, 40);
+    expect(pool).toHaveLength(40);
+    expect(new Set(ids(pool)).size).toBe(40);
+    for (const category of ["top", "bottom", "dress", "shoes", "outerwear", "accessories"] as const) {
+      expect(count(pool, category)).toBeGreaterThanOrEqual(1);
+    }
+    expect(count(pool, "top")).toBeGreaterThan(count(pool, "shoes"));
   });
 
-  it("returns everything when under the cap", () => {
-    expect(capForStyling(items, 40)).toHaveLength(items.length);
+  it("always includes the anchor, first, even when it was offered recently", () => {
+    const recent = many.map((p) => (p.id === "b29" ? { ...p, last_offered_at: Date.now() } : p));
+    const pool = pickStylingPool(recent, 40, "b29");
+    expect(pool[0].id).toBe("b29");
+    expect(pool).toHaveLength(40);
+  });
+
+  it("prefers never-offered and long-ago pieces over recently offered ones", () => {
+    const aged = many.map((p) => ({ ...p, last_offered_at: p.id.startsWith("t") ? (p.id === "t0" ? 1 : 1000) : null }));
+    const tops = pickStylingPool(aged, 40).filter((p) => p.category === "top");
+    expect(ids(tops)).toContain("t0");
+    expect(tops.every((p) => p.id === "t0" || p.last_offered_at === 1000)).toBe(true);
+  });
+
+  it("gives every piece a turn within ceil(N / max) requests", () => {
+    let wardrobe = many;
+    const seen = new Set<string>();
+    for (let round = 1; round <= 3; round++) {
+      const pool = pickStylingPool(wardrobe, 40);
+      const picked = new Set(ids(pool));
+      pool.forEach((p) => seen.add(p.id));
+      wardrobe = wardrobe.map((p) => (picked.has(p.id) ? { ...p, last_offered_at: round } : p));
+    }
+    expect(seen.size).toBe(many.length);
+  });
+
+  it("is deterministic for a fixed random source", () => {
+    expect(ids(pickStylingPool(many, 40, null, () => 0.5))).toEqual(ids(pickStylingPool(many, 40, null, () => 0.5)));
   });
 });

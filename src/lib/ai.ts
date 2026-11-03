@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import { sniffImageMime, type ImageMime } from "./image-mime";
-import { capForStyling, mockLooks, sanitizeLooks, type LookDraft, type StylableItem } from "./outfits";
+import { MAX_STYLIST_ITEMS, mockLooks, sanitizeLooks, type LookDraft, type StylableItem } from "./outfits";
 import { CATEGORIES, cleanText, guessCategory, guessColour, isCategory, type Category } from "./wardrobe";
 
 export class AiError extends Error {
@@ -215,8 +215,6 @@ Respond with ONLY a JSON object of this exact shape:
 {"looks": [{"title": string, "itemIds": string[], "reason": string}]}
 The wardrobe items follow, each as a label line and then its photo.`;
 
-const MAX_STYLIST_ITEMS = 40;
-
 // The stylist only needs to judge colour/pattern/silhouette across the whole wardrobe at once, not
 // full photo detail, so every item's photo is shrunk to a small thumbnail before it goes into the
 // request. A full wardrobe otherwise means dozens of full-size photos in one request, which takes
@@ -243,8 +241,9 @@ export async function suggestLooks(
   const { anchorId } = options;
   if (aiMode() === "mock") return mockLooks(items, { anchorId });
 
-  // The cap keeps the anchor and a spread of every category, so shoes/outerwear/accessories aren't cut out.
-  const wardrobe = capForStyling(items, MAX_STYLIST_ITEMS, anchorId);
+  // The route already rotates a fair pool in (pickStylingPool); this is only a safety cap that keeps the anchor.
+  const anchor = anchorId ? items.find((item) => item.id === anchorId) : undefined;
+  const wardrobe = (anchor ? [anchor, ...items.filter((item) => item !== anchor)] : items).slice(0, MAX_STYLIST_ITEMS);
   const thumbnails = await Promise.all(wardrobe.map((item) => stylistThumbnail(item.image)));
   // The occasion is user-typed free text: it goes in as quoted data, never as instructions.
   const occasionNote = options.occasion

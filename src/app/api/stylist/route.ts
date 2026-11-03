@@ -4,13 +4,14 @@ import { assertSameOrigin, handle, HttpError, readJson, requireUser } from "@/li
 import { COLLECTION_NOT_FOUND } from "@/lib/collections";
 import { withImages } from "@/lib/item-images";
 import { cleanText, describePiece, MAX_OCCASION_LENGTH } from "@/lib/wardrobe";
-import { canStyle, canStyleAround, missingAround } from "@/lib/outfits";
+import { canStyle, canStyleAround, MAX_STYLIST_ITEMS, missingAround, pickStylingPool } from "@/lib/outfits";
 import {
   getCollection,
   getItem,
   listCollectionItems,
   listItems,
   listLooks,
+  markOffered,
   replaceLooks,
   toLook,
 } from "@/lib/repo";
@@ -80,11 +81,13 @@ export const POST = handle(async (request: Request) => {
     );
   }
 
-  const withPhotos = await withImages(rows);
+  // Only a fair slice of a big wardrobe goes to the model (least recently offered first), so load just those photos.
+  const withPhotos = await withImages(pickStylingPool(rows, MAX_STYLIST_ITEMS, anchor?.id));
   if (anchor && !withPhotos.some((item) => item.id === anchor.id)) {
     throw new HttpError("That piece's photo couldn't be loaded, so the stylist can't work with it.", 422);
   }
   const drafts = await suggestLooks(withPhotos, { occasion, anchorId: anchor?.id ?? null });
+  markOffered(user.id, withPhotos.map((item) => item.id));
   const looks = replaceLooks(user.id, drafts, {
     occasion,
     collectionName: collection?.name ?? null,

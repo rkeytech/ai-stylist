@@ -37,6 +37,8 @@ export interface ItemRow {
   image_path: string;
   mime_type: ImageMime;
   created_at: number;
+  /** When the stylist last received this piece (null = never); drives the rotation in pickStylingPool(). */
+  last_offered_at: number | null;
 }
 
 export interface LookRow {
@@ -117,14 +119,21 @@ export function getItem(userId: string, id: string): ItemRow | undefined {
   return one<ItemRow>("SELECT * FROM items WHERE user_id = ? AND id = ?", userId, id);
 }
 
-export function insertItem(row: Omit<ItemRow, "created_at">): ItemRow {
-  const full: ItemRow = { ...row, created_at: Date.now() };
+export function insertItem(row: Omit<ItemRow, "created_at" | "last_offered_at">): ItemRow {
+  const full: ItemRow = { ...row, created_at: Date.now(), last_offered_at: null };
   run(
     `INSERT INTO items (id, user_id, name, category, colour, image_path, mime_type, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     full.id, full.user_id, full.name, full.category, full.colour, full.image_path, full.mime_type, full.created_at,
   );
   return full;
+}
+
+/** Records that the stylist just received these pieces, so the next request favours the ones it hasn't seen. */
+export function markOffered(userId: string, itemIds: string[], now = Date.now()): void {
+  transaction(() => {
+    for (const id of itemIds) run("UPDATE items SET last_offered_at = ? WHERE user_id = ? AND id = ?", now, userId, id);
+  });
 }
 
 /** Updates the editable fields of an item (name, category, colour). Returns the updated row, or undefined if not found. */
